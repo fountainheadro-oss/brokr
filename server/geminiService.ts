@@ -75,7 +75,7 @@ async function fileToGenerativePart(url: string) {
       }
     };
   } catch (e: any) {
-    console.error("[Server Gemini] Failed to fetch image for Gemini:", url, e.message);
+    console.warn("[Server Gemini] Image skipped during fetch:", url.substring(0, 80), e?.message || "");
     return null;
   }
 }

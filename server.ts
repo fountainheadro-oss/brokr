@@ -57,6 +57,7 @@ interface CleanedImageCacheEntry {
   data: Buffer;
 }
 const imageCleanCache = new Map<string, CleanedImageCacheEntry>();
+let watermarkDisabledUntil = 0;
 
 function addToImageCache(url: string, entry: CleanedImageCacheEntry) {
   if (imageCleanCache.size > 150) {
@@ -73,6 +74,15 @@ async function cleanImageWatermarks(buffer: Buffer, mimeType: string, imageUrl: 
     return buffer;
   }
   
+  // Circuit breaker: if quota/credits exhausted recently, serve original image directly
+  if (Date.now() < watermarkDisabledUntil) {
+    return buffer;
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    return buffer;
+  }
+
   try {
     console.log(`[Watermark Remover] Reading image: ${imageUrl.substring(0, 100)}...`);
     const image = await Jimp.read(buffer);
@@ -249,7 +259,21 @@ async function cleanImageWatermarks(buffer: Buffer, mimeType: string, imageUrl: 
     console.log(`[Watermark Remover] Cleaned! Original size: ${buffer.length}, Cleaned size: ${cleanedBuffer.length}`);
     return cleanedBuffer;
   } catch (err: any) {
-    console.error(`[Watermark Remover] Error cleaning watermark for ${imageUrl}:`, err.message);
+    const rawError = typeof err?.message === "string" ? err.message : JSON.stringify(err || "");
+    const isQuotaOrCredit = 
+      rawError.includes("402") || 
+      rawError.includes("RESOURCE_EXHAUSTED") || 
+      rawError.includes("prepayment credits") || 
+      rawError.includes("429") || 
+      rawError.includes("Quota exceeded");
+
+    if (isQuotaOrCredit) {
+      // Pause watermark detection calls for 20 minutes to avoid repeated failed requests
+      watermarkDisabledUntil = Date.now() + 20 * 60 * 1000;
+      console.warn(`[Watermark Remover] Prepayment/quota limit reached. Temporarily serving original images directly.`);
+    } else {
+      console.warn(`[Watermark Remover] Could not clean watermark for image (serving original): ${rawError.substring(0, 120)}`);
+    }
     return buffer;
   }
 }
@@ -1176,7 +1200,7 @@ async function startServer() {
             });
             console.log(`[Cache Pre-warming] Successfully pre-warmed: ${imgUrl}`);
           } catch (err: any) {
-            console.error(`[Cache Pre-warming] Failed to pre-warm ${imgUrl}:`, err.message);
+            console.warn(`[Cache Pre-warming] Note: pre-warming skipped for ${imgUrl.substring(0, 80)}:`, err?.message || "");
           }
         };
         

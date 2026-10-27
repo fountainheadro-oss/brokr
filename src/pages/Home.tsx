@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { Header } from "../components/Header";
+import { Sidebar, NavSubItem, NavTransactionType } from "../components/Sidebar";
 import { AddLeadModal } from "../components/AddLeadModal";
 import { LeadList } from "../components/LeadList";
 import { LeadCard } from "../components/LeadCard";
@@ -8,6 +10,7 @@ import { contactsService, Contact } from "../services/contactsService";
 import { viewingsService, Viewing } from "../services/viewingsService";
 import { downloadVCard } from "../lib/vcard";
 import { AddContactModal } from "../components/AddContactModal";
+import { AddCerereModal } from "../components/AddCerereModal";
 import { AddViewingModal } from "../components/AddViewingModal";
 import { PropertyQuickViewModal } from "../components/PropertyQuickViewModal";
 import { NotificationsModal } from "../components/NotificationsModal";
@@ -269,12 +272,45 @@ export const Home: React.FC = () => {
   });
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>('Toate');
+  const location = useLocation();
+
+  const handleSelectSidebarNav = (type: NavTransactionType, subItem: NavSubItem) => {
+    setTransactionFilter(type);
+    if (subItem === 'Lead-uri') {
+      setActiveTab('Nevalidata');
+    } else if (subItem === 'Cereri') {
+      setActiveTab('AreInteres');
+    } else if (subItem === 'Proprietăți') {
+      setActiveTab('Activa');
+    }
+  };
+
+  const currentSubItem: NavSubItem = useMemo(() => {
+    if (activeTab === 'Nevalidata' || activeTab === 'Calificata') {
+      return 'Lead-uri';
+    }
+    if (activeTab === 'AreInteres') {
+      return 'Cereri';
+    }
+    return 'Proprietăți';
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (location.state && (location.state as any).sidebarNav) {
+      const { type, subItem } = (location.state as any).sidebarNav;
+      handleSelectSidebarNav(type, subItem);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const [categoryFilter, setCategoryFilter] = useState<string>('Toate');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [viewings, setViewings] = useState<Viewing[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCerereModalOpen, setIsCerereModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isViewingModalOpen, setIsViewingModalOpen] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -731,6 +767,19 @@ export const Home: React.FC = () => {
     const filtered = leads
       .filter(lead => lead.status === activeTab)
       .filter(lead => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase().trim();
+        const titleMatch = (lead.title || "").toLowerCase().includes(q);
+        const zoneMatch = (lead.zone || "").toLowerCase().includes(q);
+        const priceMatch = (lead.price || "").toLowerCase().includes(q);
+        const nameMatch = (lead.ownerName || "").toLowerCase().includes(q);
+        const phoneMatch = (lead.ownerPhone || "").toLowerCase().includes(q);
+        const idMatch = (lead.propertyId || lead.id || "").toLowerCase().includes(q);
+        const catMatch = (lead.categoria || "").toLowerCase().includes(q);
+        const notesMatch = (lead.notes || "").toLowerCase().includes(q);
+        return titleMatch || zoneMatch || priceMatch || nameMatch || phoneMatch || idMatch || catMatch || notesMatch;
+      })
+      .filter(lead => {
         if (transactionFilter === 'Toate') return true;
         const type = lead.transactionType as string;
         if (!type) return false;
@@ -802,7 +851,7 @@ export const Home: React.FC = () => {
     });
 
     return groups;
-  }, [leads, activeTab, sortOption, transactionFilter, categoryFilter]);
+  }, [leads, activeTab, sortOption, transactionFilter, categoryFilter, searchQuery]);
 
   const handleLeadClick = React.useCallback((lead: Lead) => {
     if (lead.status === "Nevalidata") {
@@ -1349,8 +1398,15 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="h-full bg-gray-50 flex flex-col overflow-hidden relative">
-      <AnimatePresence mode="popLayout" initial={false}>
+    <div className="h-full w-full flex flex-row overflow-hidden bg-gray-50">
+      <Sidebar 
+        activeType={transactionFilter}
+        activeSubItem={currentSubItem}
+        onSelectNav={handleSelectSidebarNav}
+        leads={leads}
+      />
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+        <AnimatePresence mode="popLayout" initial={false}>
         {!selectedLead ? (
           <motion.div
             key="list-view"
@@ -1362,9 +1418,14 @@ export const Home: React.FC = () => {
           >
             <Header 
               onAddClick={() => setIsModalOpen(true)} 
+              onAddCerereClick={() => setIsCerereModalOpen(true)}
               onAddContactClick={() => setIsContactModalOpen(true)}
               onNotificationsClick={() => setIsNotificationsOpen(true)} 
               onExtractionRulesClick={() => setIsExtractionRulesOpen(true)}
+              onSelectLead={handleLeadClick}
+              onSelectContact={(c) => setSelectedContact(c)}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
             />
 
             {/* Tabs & Filters */}
@@ -2138,6 +2199,11 @@ export const Home: React.FC = () => {
       />
 
       <AddLeadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <AddCerereModal 
+        isOpen={isCerereModalOpen} 
+        onClose={() => setIsCerereModalOpen(false)} 
+        onSuccess={() => setActiveTab("AreInteres")}
+      />
       <ExtractionRulesModal isOpen={isExtractionRulesOpen} onClose={() => setIsExtractionRulesOpen(false)} />
       <AddContactModal 
         isOpen={isContactModalOpen} 
@@ -2184,6 +2250,7 @@ export const Home: React.FC = () => {
         onDeleteLead={handleDeleteCalificatLead}
         onOpenFullForm={handleOpenFullFormFromCalificat}
       />
+      </div>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Header } from "../components/Header";
+import { Sidebar } from "../components/Sidebar";
 import { viewingsService, Viewing } from "../services/viewingsService";
 import { toast } from "react-hot-toast";
 import { 
@@ -202,32 +203,41 @@ export const Calendar: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#fbfbfb]">
-      <Header 
-        onAddClick={() => navigate('/')} 
-        onNotificationsClick={async () => {
-          if ('Notification' in window) {
-             const permission = await Notification.requestPermission();
-             if (permission === 'granted') {
-               toast.success('Notificările de sistem au fost activate!');
-             } else {
-               toast.error('Notificările de sistem sunt blocate de browser.');
-             }
-          } else {
-            toast.error('Browserul tău nu suportă notificări de sistem.');
-          }
-        }} 
-        onAddContactClick={() => navigate('/')}
+    <div className="h-full w-full flex flex-row overflow-hidden bg-[#fbfbfb]">
+      <Sidebar 
+        leads={leads}
+        onSelectNav={(type, subItem) => {
+          navigate('/', { state: { sidebarNav: { type, subItem } } });
+        }}
       />
-      <main className="flex-1 overflow-hidden flex flex-col px-[10px] py-[10px]">
-        <div className="flex-1 bg-white rounded-[16px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-          {renderHeader()}
-          <div className="flex-1 overflow-y-auto custom-scrollbar no-scrollbar-mobile">
-            {renderDaysHeader()}
-            {renderCells()}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <Header 
+          onAddClick={() => navigate('/')} 
+          onAddCerereClick={() => navigate('/')}
+          onNotificationsClick={async () => {
+            if ('Notification' in window) {
+               const permission = await Notification.requestPermission();
+               if (permission === 'granted') {
+                 toast.success('Notificările de sistem au fost activate!');
+               } else {
+                 toast.error('Notificările de sistem sunt blocate de browser.');
+               }
+            } else {
+              toast.error('Browserul tău nu suportă notificări de sistem.');
+            }
+          }} 
+          onAddContactClick={() => navigate('/')}
+        />
+        <main className="flex-1 overflow-hidden flex flex-col px-[10px] py-[10px]">
+          <div className="flex-1 bg-white rounded-[16px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+            {renderHeader()}
+            <div className="flex-1 overflow-y-auto custom-scrollbar no-scrollbar-mobile">
+              {renderDaysHeader()}
+              {renderCells()}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
       <ViewingDetailsModal 
         isOpen={isViewingDetailsOpen}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Globe, Zap, Loader2 } from "lucide-react";
+import { X, Globe, Zap, Loader2, Building2 } from "lucide-react";
 import { leadsService } from "../services/leadsService";
-import { extractData, extractBasicData } from "../services/geminiService";
+import { extractBasicData } from "../services/geminiService";
 import { notificationsService } from "../services/notificationsService";
 import toast from "react-hot-toast";
 
@@ -28,7 +28,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url) return;
+    if (!url.trim()) return;
 
     setLoading(true);
     setStatus("Accesare URL...");
@@ -37,7 +37,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
       const crawlRes = await fetch("/api/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: url.trim() }),
       });
       
       if (!crawlRes.ok) {
@@ -63,7 +63,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
       // 3. Save to Firestore
       setStatus("Salvare...");
       await leadsService.addLead({
-        url,
+        url: url.trim(),
         title: extractionResult.title || title || "Fără titlu",
         zone: extractionResult.zone || "Nespecificat",
         price: extractionResult.price || "N/A",
@@ -73,18 +73,18 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
         categoria: extractionResult.categoria || "Alte tipuri",
         status: "Nevalidata",
         coverImage,
-        extractedData: null // No full extraction yet
+        extractedData: null
       });
 
       await notificationsService.addNotification({
-        title: 'Lead Nou Adăugat',
+        title: 'Proprietate Nouă Adăugată',
         message: `Proprietatea din ${extractionResult.zone || "zonă nespecificată"} a fost adăugată cu succes.`,
         type: 'lead'
       });
 
       setUrl("");
       onClose();
-      toast.success("Lead-ul a fost adăugat cu succes!");
+      toast.success("Proprietatea a fost adăugată cu succes!");
     } catch (error: any) {
       console.error(error);
       setStatus("Eroare la adăugare");
@@ -92,7 +92,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
       if (errMessage.includes("HTML instead of JSON")) {
         toast.error("Serviciul de scanare este momentan indisponibil. Reîncercați în câteva secunde.");
       } else {
-        toast.error(`Eroare la adăugarea lead-ului: ${errMessage || "Eroare necunoscută"}`);
+        toast.error(`Eroare la adăugarea proprietății: ${errMessage || "Eroare necunoscută"}`);
       }
     } finally {
       setLoading(false);
@@ -100,78 +100,108 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 z-[300] backdrop-blur-sm"
-          />
-          
-          {/* Modal Content */}
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 max-w-xl mx-auto bg-white rounded-t-[16px] z-[301] border-x border-t border-gray-100 shadow-2xl overflow-hidden"
-          >
-            <div className="w-12 h-1.5 bg-gray-100 rounded-full mx-auto my-3" />
-            
-            <div className="p-5 flex items-center justify-between bg-white border-b border-gray-100">
-              <h2 className="text-[16px] font-bold text-gray-900 tracking-tight">Adaugă Lead Nou</h2>
-              <button 
+      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/40 backdrop-blur-[2px]"
+        />
+
+        {/* Modal Window */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.98, y: 10 }}
+          className="relative bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden z-10"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <Building2 size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Adaugă Proprietate Nouă</h3>
+                <p className="text-[11px] text-gray-500">Scanare și extragere automată date din URL</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                Link Anunț Imobiliar *
+              </label>
+              <div className="relative">
+                <Globe size={14} className="absolute left-3 top-2.5 text-gray-400" />
+                <input
+                  ref={inputRef}
+                  type="url"
+                  required
+                  placeholder="https://www.storia.ro/... sau olx.ro, imobiliare.ro"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">
+                AI-ul va extrage automat detaliile, imaginile, prețul și contactul proprietarului.
+              </p>
+            </div>
+
+            {loading && status && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50/60 border border-indigo-100 rounded-lg text-xs text-indigo-700">
+                <Loader2 size={14} className="animate-spin text-indigo-600 shrink-0" />
+                <span className="font-medium">{status}</span>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-gray-900 transition-colors border border-gray-100 shadow-sm"
-               >
-                <X size={20} strokeWidth={2.5} />
+                disabled={loading}
+                className="px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Anulează
+              </button>
+              <button
+                type="submit"
+                disabled={loading || !url.trim()}
+                className="px-4 py-2 text-xs font-medium bg-gray-900 hover:bg-black text-white rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Se procesează...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap size={14} className="text-amber-400 fill-amber-400" />
+                    <span>Scanează & Adaugă</span>
+                  </>
+                )}
               </button>
             </div>
- 
-            <div className="p-8 pb-12">
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="relative group">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[--color-accent] transition-colors">
-                    <Globe size={18} />
-                  </div>
-                  <input
-                    ref={inputRef}
-                    type="url"
-                    required
-                    placeholder="Introduceți URL-ul proprietății..."
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    className="input-base w-full pl-14 pr-5 rounded-[8px] font-roboto text-base font-normal text-[#333333] placeholder-gray-400"
-                  />
-                </div>
-   
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  disabled={loading || !url}
-                  className="w-full h-14 bg-gray-900 text-white hover:bg-black transition-colors rounded-full font-bold flex items-center justify-center gap-3 disabled:opacity-50 shadow-lg shadow-gray-200"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span className="text-[15px] font-bold">{status}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap size={18} fill="currentColor" className="text-[--color-accent]" />
-                      <span className="text-[15px] font-bold">Adaugă în listă</span>
-                    </>
-                  )}
-                </motion.button>
-              </form>
-            </div>
-          </motion.div>
-        </>
-      )}
+          </form>
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 };
