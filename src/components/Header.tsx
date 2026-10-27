@@ -47,84 +47,99 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="shrink-0 bg-white border-[#eee] border-b shadow-sm relative z-[100]">
-      <div className="h-[96px] flex justify-between items-center px-5">
-        <div className="flex items-center gap-2">
+    <header className="shrink-0 bg-white border-b border-gray-200 shadow-none relative z-[100]">
+      <div className="h-[50px] flex justify-between items-center px-4">
+        {/* Left tools */}
+        <div className="flex items-center gap-1.5">
           <button 
             onClick={onNotificationsClick}
-            className="w-12 h-12 flex items-center justify-center bg-white rounded-full cursor-pointer hover:bg-gray-50 transition-colors relative"
+            className="w-8 h-8 flex items-center justify-center bg-white rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 transition-colors relative"
+            title="Notificări"
           >
-            <div className="w-2.5 h-2.5 bg-[--color-accent] rounded-full absolute top-2 right-2 border-2 border-white" />
-            <Bell size={24} className="text-[rgb(51,51,51)]" />
+            <div className="w-2 h-2 bg-indigo-600 rounded-full absolute top-1.5 right-1.5 border border-white" />
+            <Bell size={15} />
           </button>
 
           {/* Wipe All button */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleWipe}
-            className={`w-12 h-12 flex flex-col items-center justify-center rounded-full cursor-pointer transition-all ${
+            className={`h-8 px-2 flex items-center gap-1 rounded-md transition-all text-xs font-medium border ${
               confirmWipe 
-                ? "bg-red-500 text-white animate-pulse shadow-md" 
-                : "bg-white hover:bg-red-50 text-gray-500 hover:text-red-500 border border-gray-100"
+                ? "bg-red-600 text-white border-red-600 animate-pulse" 
+                : "bg-white hover:bg-red-50 text-gray-500 hover:text-red-600 border-gray-200"
             }`}
             title={confirmWipe ? "Apasă din nou pentru a confirma ștergerea tuturor proprietăților!" : "Șterge definitiv toate proprietățile din baza de date"}
           >
-            {confirmWipe ? (
-              <span className="text-[10px] font-bold tracking-tight">CONFIRM</span>
-            ) : (
-              <Trash2 size={20} />
-            )}
+            <Trash2 size={14} />
+            {confirmWipe && <span className="text-[10px] font-bold">CONFIRM</span>}
           </motion.button>
         </div>
         
+        {/* Center brand */}
         <div className="flex-1 flex justify-center items-center">
-          <span 
+          <div 
             onClick={() => navigate('/')}
-            className="font-montserrat text-3xl font-extrabold tracking-tight text-gray-900 cursor-pointer"
+            className="flex items-center gap-1.5 cursor-pointer select-none"
           >
-            brokr<span className="ml-[-1px]" style={{ color: "var(--color-accent)" }}>.</span>
-          </span>
+            <span className="text-[15px] font-semibold tracking-tight text-gray-900">
+              brokr<span className="text-indigo-600">.</span>
+            </span>
+            <span className="text-[11px] font-medium text-gray-400 border border-gray-200 px-1.5 py-0.2 rounded bg-gray-50/80">
+              crm
+            </span>
+          </div>
         </div>
    
-        <div className="flex items-center gap-1">
+        {/* Right actions */}
+        <div className="flex items-center gap-1.5">
           <AICallButtons />
           
           {onExtractionRulesClick && (
             <motion.button 
               whileTap={{ scale: 0.95 }}
               onClick={onExtractionRulesClick}
-              className="w-12 h-12 flex items-center justify-center bg-white rounded-full cursor-pointer hover:bg-gray-50 text-[rgb(51,51,51)] transition-colors"
+              className="w-8 h-8 flex items-center justify-center bg-white rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700 transition-colors"
               title="Reguli Extragere Contacte"
             >
-              <Sliders size={20} strokeWidth={2.5} />
+              <Sliders size={15} />
             </motion.button>
           )}
           
           <motion.button 
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/calendar')}
-            className={`w-12 h-12 flex items-center justify-center rounded-full cursor-pointer transition-colors ${isCalendar ? 'bg-[--color-accent]/10 text-[--color-accent]' : 'bg-white hover:bg-gray-50 text-[rgb(51,51,51)]'}`}
+            className={`h-8 px-2.5 flex items-center gap-1.5 rounded-md text-xs font-medium border transition-colors ${
+              isCalendar 
+                ? 'bg-gray-900 text-white border-gray-900' 
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
+            }`}
             title="Calendar Vizionări"
           >
-            <Calendar size={22} strokeWidth={isCalendar ? 2.5 : 2} />
+            <Calendar size={14} />
+            <span className="hidden sm:inline">Calendar</span>
           </motion.button>
   
-          <motion.button 
-            whileTap={{ scale: 0.95 }}
-            onClick={onAddContactClick}
-            className="w-12 h-12 flex items-center justify-center bg-white rounded-full cursor-pointer hover:bg-gray-50 transition-colors"
-            title="Adaugă Contact"
-          >
-            <UserPlus size={22} strokeWidth={2.5} className="text-[rgb(51,51,51)]" />
-          </motion.button>
+          {onAddContactClick && (
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
+              onClick={onAddContactClick}
+              className="h-8 px-2.5 flex items-center gap-1.5 rounded-md text-xs font-medium bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-colors"
+              title="Adaugă Contact"
+            >
+              <UserPlus size={14} />
+              <span className="hidden sm:inline">Contact</span>
+            </motion.button>
+          )}
   
           <motion.button 
             whileTap={{ scale: 0.95 }}
             onClick={onAddClick}
-            className="w-12 h-12 flex items-center justify-center bg-white rounded-full cursor-pointer hover:bg-gray-50 transition-colors"
+            className="h-8 px-3 flex items-center gap-1 rounded-md text-xs font-medium bg-gray-900 hover:bg-black text-white transition-colors shadow-sm"
             title="Adaugă Lead"
           >
-            <Plus size={24} strokeWidth={2.5} className="text-[rgb(51,51,51)]" />
+            <Plus size={15} />
+            <span>Adaugă Lead</span>
           </motion.button>
         </div>
       </div>

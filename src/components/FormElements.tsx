@@ -3,7 +3,7 @@ import { Download, Copy, Check, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const FormLabel = ({ children }: { children: React.ReactNode }) => (
-  <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">
+  <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
     {children}
   </label>
 );
@@ -30,10 +30,10 @@ export const FormInput = ({ value: initialValue, placeholder, unit, type = "text
         onBlur={() => onBlur?.(value)}
         onFocus={onFocus}
         placeholder={placeholder}
-        className={`input-base w-full ${unit ? 'pr-14' : ''} ${type === 'date' ? 'uppercase text-[13px] font-bold' : ''}`}
+        className={`input-base w-full ${unit ? 'pr-10' : ''} ${type === 'date' ? 'uppercase text-[12px] font-medium' : ''}`}
       />
       {unit && (
-        <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[12px] font-bold text-[--color-text-placeholder] pointer-events-none">
+        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-gray-400 pointer-events-none">
           {unit}
         </span>
       )}
@@ -64,9 +64,9 @@ export const FormInputWithCounter = ({ value: initialValue, limit = 70, onChange
         value={value}
         onChange={handleChange}
         onBlur={onBlur}
-        className={`input-base w-full pr-14 ${isOverLimit ? 'border-[--color-accent] focus:border-[--color-accent]' : ''}`}
+        className={`input-base w-full pr-10 ${isOverLimit ? 'border-red-500 focus:border-red-500' : ''}`}
       />
-      <span className={`absolute right-5 top-1/2 -translate-y-1/2 text-[11px] font-bold ${isOverLimit ? 'text-[--color-accent]' : 'text-[--color-text-placeholder]'}`}>
+      <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono ${isOverLimit ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
         {count}
       </span>
     </div>
@@ -97,7 +97,7 @@ export const FormSelect = ({ value: initialValue, placeholder, options = [], onC
   return (
     <div className="relative w-full">
       <select
-        className="input-base w-full appearance-none pr-12 cursor-pointer"
+        className="input-base w-full appearance-none pr-8 cursor-pointer"
         value={value}
         onChange={handleChange}
         onBlur={onBlur}
@@ -108,9 +108,9 @@ export const FormSelect = ({ value: initialValue, placeholder, options = [], onC
           </option>
         ))}
       </select>
-      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[--color-text-placeholder]">
-        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+        <svg width="8" height="5" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
     </div>
@@ -119,9 +119,8 @@ export const FormSelect = ({ value: initialValue, placeholder, options = [], onC
 
 export const FormCheckbox = ({ label, checked, onChange }: { label: string, checked: boolean, onChange?: (val: boolean) => void }) => {
   return (
-    <label className="flex items-center gap-3 group cursor-pointer select-none py-1.5 h-9 relative">
-      <div className="relative w-5 h-5 shrink-0 flex items-center justify-center">
-        {/* Hidden Native Input correctly covering the interaction area */}
+    <label className="flex items-center gap-2 group cursor-pointer select-none py-1 h-7 relative">
+      <div className="relative w-4 h-4 shrink-0 flex items-center justify-center">
         <input
           type="checkbox"
           checked={!!checked}
@@ -132,11 +131,10 @@ export const FormCheckbox = ({ label, checked, onChange }: { label: string, chec
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 peer"
         />
         
-        {/* Custom Visual Box (Material 3 inspired) */}
-        <div className={`w-[19px] h-[19px] rounded-[2px] border-2 transition-all duration-200 flex items-center justify-center ${
+        <div className={`w-3.5 h-3.5 rounded border transition-all duration-150 flex items-center justify-center ${
           checked 
-          ? 'bg-accent border-accent' 
-          : 'bg-transparent border-gray-300 group-hover:border-gray-400 peer-focus:border-accent'
+          ? 'bg-gray-900 border-gray-900' 
+          : 'bg-white border-gray-300 group-hover:border-gray-400'
         }`}>
           <AnimatePresence>
             {checked && (
@@ -144,28 +142,24 @@ export const FormCheckbox = ({ label, checked, onChange }: { label: string, chec
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
+                transition={{ duration: 0.1, ease: "easeOut" }}
                 className="flex items-center justify-center"
               >
-                <Check size={14} strokeWidth={4} className="text-white" />
+                <Check size={10} strokeWidth={3} className="text-white" />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-
-        {/* State Layer (Material 3 State layer) */}
-        <div className="absolute inset-0 -m-2 rounded-full bg-transparent group-hover:bg-accent/5 peer-focus:bg-accent/10 transition-colors pointer-events-none" />
       </div>
-      <span className="text-[14px] font-medium text-[--color-text-main] transition-colors">{label}</span>
+      <span className="text-[12px] font-normal text-gray-700 transition-colors leading-none">{label}</span>
     </label>
   );
 };
 
 export const FormRadio = ({ label, checked, onChange }: { label: string, checked: boolean, onChange?: (val: boolean) => void }) => {
   return (
-    <label className="flex items-center gap-3 group cursor-pointer select-none py-1.5 h-9 relative">
-      <div className="relative w-5 h-5 shrink-0 flex items-center justify-center">
-        {/* Hidden Native Input */}
+    <label className="flex items-center gap-2 group cursor-pointer select-none py-1 h-7 relative">
+      <div className="relative w-4 h-4 shrink-0 flex items-center justify-center">
         <input
           type="radio"
           checked={checked}
@@ -175,11 +169,10 @@ export const FormRadio = ({ label, checked, onChange }: { label: string, checked
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 peer"
         />
 
-        {/* Custom Visual Circle (Material 3 inspired) */}
-        <div className={`w-[20px] h-[20px] rounded-full border-2 transition-all duration-200 flex items-center justify-center ${
+        <div className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 flex items-center justify-center ${
           checked 
-          ? 'border-accent' 
-          : 'bg-transparent border-gray-300 group-hover:border-gray-400 peer-focus:border-accent'
+          ? 'border-gray-900' 
+          : 'bg-white border-gray-300 group-hover:border-gray-400'
         }`}>
           <AnimatePresence>
             {checked && (
@@ -187,17 +180,14 @@ export const FormRadio = ({ label, checked, onChange }: { label: string, checked
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="w-[10px] h-[10px] bg-accent rounded-full"
+                transition={{ duration: 0.1, ease: "easeOut" }}
+                className="w-1.5 h-1.5 bg-gray-900 rounded-full"
               />
             )}
           </AnimatePresence>
         </div>
-
-        {/* State Layer */}
-        <div className="absolute inset-0 -m-2 rounded-full bg-transparent group-hover:bg-accent/5 peer-focus:bg-accent/10 transition-colors pointer-events-none" />
       </div>
-      <span className="text-[14px] font-medium text-[--color-text-main] transition-colors">{label}</span>
+      <span className="text-[12px] font-normal text-gray-700 transition-colors leading-none">{label}</span>
     </label>
   );
 };
@@ -215,7 +205,7 @@ export const FormRadioBar = ({ options, activeValue: initialActive, onChange }: 
   };
 
   return (
-    <div className="flex flex-wrap gap-2 w-full">
+    <div className="flex flex-wrap gap-1.5 w-full">
       {options.map((opt) => {
         const isActive = String(active || "").toLowerCase() === String(opt || "").toLowerCase();
         return (
@@ -223,10 +213,10 @@ export const FormRadioBar = ({ options, activeValue: initialActive, onChange }: 
             key={opt}
             type="button"
             onClick={() => handleSelect(opt)}
-            className={`px-6 h-12 text-[13px] font-bold rounded-[8px] border transition-all flex-1 min-w-[120px] ${
+            className={`px-3 h-8 text-[12px] font-medium rounded-md border transition-all flex-1 min-w-[90px] ${
               isActive 
-                ? 'bg-white border-[--color-accent] text-[--color-text-main] shadow-sm' 
-                : 'bg-white border-[--color-border] text-[--color-text-secondary] hover:border-[--color-border-hover] hover:bg-[--color-bg-focus] hover:text-[--color-text-main]'
+                ? 'bg-gray-900 border-gray-900 text-white shadow-xs' 
+                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'
             }`}
           >
             {opt}

@@ -1,73 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&family=Inter:wght@400;500;600&family=Roboto:wght@400;600&display=swap');
+@import url('https://fonts.cdnfonts.com/css/neue-montreal');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-montserrat: "Montserrat", sans-serif;
-  --font-roboto: "Roboto", sans-serif;
+  --font-sans: "Neue Montreal", "PP Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Layout Constants */
-  --spacing-edge: 20px;
-  --spacing-bottom: 20px;
-  --component-height: 48px;
-  --otp-height: 72px;
+  /* Layout Constants (Crisp Render.com density scale) */
+  --spacing-edge: 16px;
+  --spacing-bottom: 16px;
+  --component-height: 36px;
+  --otp-height: 48px;
 
-  /* Design Brand Colors (Active Theme) */
-  --color-primary: #000000;
-  --color-accent: #e04839;
-  --color-accent-light: #e66d61;
-  --color-text-main: #333333;
-  --color-text-secondary: #6a7282;
-  --color-text-placeholder: #999999;
+  /* Design Brand Colors (Render.com inspired clean neutral canvas) */
+  --color-primary: #111827;
+  --color-accent: #6366f1;
+  --color-accent-light: #818cf8;
+  --color-text-main: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-placeholder: #9ca3af;
   --color-border: #e5e7eb;
-  --color-border-hover: #D1D5DB;
-  --color-bg-focus: #fdfdfd;
-  --color-bg-app: #ffffff;
+  --color-border-hover: #d1d5db;
+  --color-bg-focus: #ffffff;
+  --color-bg-app: #f9fafb;
   --color-bg-card: #ffffff;
 
-  /* Global Borader Radius */
-  --radius-standard: 8px;
+  /* Global Border Radius (Sharp 6px radius) */
+  --radius-standard: 6px;
 }
 
-/* Common Design Utilities */
+/* Common Design Utilities - Scaled down for high information density */
 @utility input-base {
   border: 1px solid var(--color-border);
   background-color: #ffffff;
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 400;
-  color: #333333;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  font-weight: 450;
+  color: #111827;
   outline: none;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.15s ease-in-out;
   border-radius: var(--radius-standard);
-  height: 48px;
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
+  height: 36px;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 
   &:hover {
     border: 1px solid var(--color-border-hover);
     background-color: var(--color-bg-focus);
-    color: #333333;
+    color: #111827;
   }
 
   &:focus {
-    border: 1px solid var(--color-accent);
-    box-shadow: 0 0 0 4px rgba(224, 72, 57, 0.1);
+    border: 1px solid #111827;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
     background-color: var(--color-bg-focus);
-    color: #333333;
+    color: #111827;
   }
 }
 
 @utility button-base {
-  @apply h-[48px] px-8 font-semibold transition-all flex items-center justify-center gap-2;
+  @apply h-[34px] px-3 text-[13px] font-medium transition-all flex items-center justify-center gap-1.5;
   border-radius: var(--radius-standard);
 }
 
 @layer base {
+  * {
+    font-family: var(--font-sans);
+  }
+
   input::placeholder {
-    color: #999999;
+    color: #9ca3af;
     opacity: 1;
-    font-size: 16px;
+    font-size: 13px;
   }
   
   /* Hide number input arrows */
@@ -83,7 +87,10 @@
   body {
     background-color: var(--color-bg-app);
     color: var(--color-text-main);
-    @apply font-sans antialiased selection:bg-accent/10 selection:text-accent;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    @apply antialiased selection:bg-slate-900 selection:text-white;
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -97,20 +104,27 @@
     overflow: hidden;
     margin: 0;
     padding: 0;
+    font-family: var(--font-sans);
+    font-size: 14px;
   }
 
   #root {
     height: 100%;
     width: 100%;
     overflow: hidden;
+    font-family: var(--font-sans);
   }
   
   h1, h2 {
-    @apply font-roboto font-normal text-[--color-text-main] text-[24px];
+    @apply font-sans font-semibold text-[--color-text-main] text-[16px] tracking-tight;
+  }
+
+  h3 {
+    @apply font-sans font-semibold text-[--color-text-main] text-[14px] tracking-tight;
   }
 
   p {
-    @apply text-[--color-text-secondary] font-medium text-sm;
+    @apply text-[--color-text-secondary] font-normal text-[13px];
   }
 
   input[type="text"],
@@ -120,15 +134,15 @@
   input[type="email"],
   select {
     @apply input-base;
-    height: 48px;
+    height: 36px;
   }
 
   textarea {
     @apply input-base;
     border-radius: var(--radius-standard) !important;
-    min-height: 100px;
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
+    min-height: 80px;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
     height: auto;
   }
 }
@@ -139,21 +153,21 @@
   }
   
   .shadow-soft {
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
   }
 
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
+    height: 4px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 10px;
+    background: #e5e7eb;
+    border-radius: 4px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #cbd5e1;
+    background: #d1d5db;
   }
 }
-

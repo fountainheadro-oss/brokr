@@ -1368,10 +1368,10 @@ export const Home: React.FC = () => {
             />
 
             {/* Tabs & Filters */}
-            <div className="bg-white border-b border-gray-200 shrink-0 h-[64px] overflow-hidden">
-              <div className="px-5 w-full h-full">
+            <div className="bg-white border-b border-gray-200 shrink-0 h-[40px] overflow-hidden">
+              <div className="px-4 w-full h-full">
                 <div className="flex items-center justify-between overflow-x-auto no-scrollbar overflow-y-hidden h-full">
-                  <div className="flex gap-8 h-full">
+                  <div className="flex gap-5 h-full">
                     {TABS.slice(0, 6).map(tab => {
                       const tabCount = leads.filter(l => l.status === tab).length;
                       const hasNew = leads.some(lead => {
@@ -1383,23 +1383,23 @@ export const Home: React.FC = () => {
                         <button
                           key={tab}
                           onClick={() => setActiveTab(tab)}
-                          className={`relative px-2 h-full flex items-center text-[16px] font-bold transition-all whitespace-nowrap ${
+                          className={`relative px-1 h-full flex items-center text-[12px] font-medium transition-all whitespace-nowrap ${
                             activeTab === tab 
-                            ? "text-gray-900" 
-                            : "text-gray-400 hover:text-gray-600"
+                            ? "text-gray-900 font-semibold" 
+                            : "text-gray-500 hover:text-gray-800"
                           }`}
                         >
                           <span className="flex items-center gap-1.5">
                             {STATUS_LABELS[tab]}
-                            <span className="text-[13px] font-medium opacity-80">({tabCount})</span>
+                            <span className="text-[11px] font-mono text-gray-400">({tabCount})</span>
                             {hasNew && (
-                              <span className="w-2 h-2 rounded-full bg-[rgb(224,72,57)] animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
                             )}
                           </span>
                           {activeTab === tab && (
                             <motion.div 
                               layoutId="activeTab"
-                              className="absolute bottom-0 left-0 right-0 h-[6px] bg-[rgb(224,72,57)] rounded-t-full"
+                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-900"
                               initial={false}
                             />
                           )}
@@ -1407,7 +1407,7 @@ export const Home: React.FC = () => {
                       );
                     })}
                   </div>
-                  <div className="flex gap-8 ml-8 h-full">
+                  <div className="flex gap-5 ml-6 h-full">
                     {TABS.slice(6).map(tab => {
                       const tabCount = leads.filter(l => l.status === tab).length;
                       const hasNew = leads.some(lead => {
@@ -1419,23 +1419,23 @@ export const Home: React.FC = () => {
                         <button
                           key={tab}
                           onClick={() => setActiveTab(tab)}
-                          className={`relative px-2 h-full flex items-center text-[16px] font-bold transition-all whitespace-nowrap ${
+                          className={`relative px-1 h-full flex items-center text-[12px] font-medium transition-all whitespace-nowrap ${
                             activeTab === tab 
-                            ? "text-gray-900" 
-                            : "text-gray-400 hover:text-gray-600"
+                            ? "text-gray-900 font-semibold" 
+                            : "text-gray-500 hover:text-gray-800"
                           }`}
                         >
                           <span className="flex items-center gap-1.5">
                             {STATUS_LABELS[tab]}
-                            <span className="text-[13px] font-medium opacity-80">({tabCount})</span>
+                            <span className="text-[11px] font-mono text-gray-400">({tabCount})</span>
                             {hasNew && (
-                              <span className="w-2 h-2 rounded-full bg-[rgb(224,72,57)] animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
                             )}
                           </span>
                           {activeTab === tab && (
                             <motion.div 
                               layoutId="activeTab"
-                              className="absolute bottom-0 left-0 right-0 h-[6px] bg-[rgb(224,72,57)] rounded-t-full"
+                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-900"
                               initial={false}
                             />
                           )}
@@ -1448,16 +1448,15 @@ export const Home: React.FC = () => {
             </div>
 
             {/* Filters Sub-header */}
-            <div className="bg-gray-50 border-b border-gray-200 shrink-0 h-[72px] flex items-center">
-              <div className="px-5 py-2 flex-1 flex items-center justify-between relative">
+            <div className="bg-gray-50/70 border-b border-gray-200 shrink-0 h-[42px] flex items-center">
+              <div className="px-4 flex-1 flex items-center justify-between relative">
                 {/* Left Side: Transaction */}
-                <div className="flex items-center gap-4">
-                  {/* Transaction Filter Radio Buttons */}
-                  <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                     {(['Toate', 'Vânzare', 'Închiriere'] as TransactionFilter[]).map((type) => (
                       <label
                         key={type}
-                        className="flex items-center gap-2 cursor-pointer group"
+                        className="flex items-center gap-1.5 cursor-pointer group"
                       >
                         <div className="relative flex items-center justify-center">
                           <input
@@ -1467,19 +1466,19 @@ export const Home: React.FC = () => {
                             onChange={() => setTransactionFilter(type)}
                             className="sr-only"
                           />
-                          <div className={`w-5 h-5 rounded-full border-2 transition-all ${
+                          <div className={`w-3.5 h-3.5 rounded-full border transition-all ${
                             transactionFilter === type
-                            ? "border-[rgb(224,72,57)]"
-                            : "border-gray-300 group-hover:border-gray-400"
+                            ? "border-gray-900 bg-gray-900"
+                            : "border-gray-300 group-hover:border-gray-400 bg-white"
                           }`} />
                           {transactionFilter === type && (
-                            <div className="absolute w-2.5 h-2.5 rounded-full bg-[rgb(224,72,57)]" />
+                            <div className="absolute w-1.5 h-1.5 rounded-full bg-white" />
                           )}
                         </div>
-                        <span className={`text-[14px] font-bold transition-colors ${
+                        <span className={`text-[12px] transition-colors ${
                           transactionFilter === type
-                          ? "text-gray-900"
-                          : "text-gray-400 group-hover:text-gray-600"
+                          ? "text-gray-900 font-medium"
+                          : "text-gray-500 group-hover:text-gray-700"
                         }`}>
                           {type}
                         </span>
@@ -1489,43 +1488,43 @@ export const Home: React.FC = () => {
                 </div>
 
                 {/* Middle: Count */}
-                <div className="flex items-center gap-2 text-gray-400 text-[10px] font-bold uppercase tracking-widest absolute left-1/2 -translate-x-1/2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mr-1" />
-                  <span>{Object.values(groupedLeads).flat().length} proprietăți găsite</span>
+                <div className="hidden md:flex items-center gap-1.5 text-gray-400 text-[11px] font-mono absolute left-1/2 -translate-x-1/2">
+                  <span className="w-1 h-1 rounded-full bg-gray-300" />
+                  <span>{Object.values(groupedLeads).flat().length} proprietăți</span>
                 </div>
 
                 {/* Right Side: Category & Sort */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {/* Category Filter */}
-                  <div className="relative w-56">
+                  <div className="relative w-40">
                     <select
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="w-full h-[48px] bg-white border border-[--color-border] rounded-[8px] px-5 pr-12 text-[15px] font-bold text-[--color-text-main] appearance-none focus:outline-none focus:border-[--color-border-hover] focus:bg-[--color-bg-focus] transition-all shadow-none cursor-pointer hover:border-[--color-border-hover] hover:bg-[--color-bg-focus]"
+                      className="w-full h-[30px] bg-white border border-gray-200 rounded-md px-2.5 pr-7 text-[12px] font-normal text-gray-800 appearance-none focus:outline-none focus:border-gray-400 transition-all cursor-pointer hover:border-gray-300"
                     >
                       <option value="Toate">Toate</option>
                       {CATEGORIA_OPTIONS.map(opt => (
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[--color-text-placeholder]">
-                      <ChevronDown size={18} />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                      <ChevronDown size={14} />
                     </div>
                   </div>
 
-                  <div className="relative w-56">
+                  <div className="relative w-36">
                     <select
                       value={sortOption}
                       onChange={(e) => setSortOption(e.target.value as SortOption)}
-                      className="w-full h-[48px] bg-white border border-[--color-border] rounded-[8px] px-5 pr-12 text-[15px] font-bold text-[--color-text-main] appearance-none focus:outline-none focus:border-[--color-border-hover] focus:bg-[--color-bg-focus] transition-all shadow-none cursor-pointer hover:border-[--color-border-hover] hover:bg-[--color-bg-focus]"
+                      className="w-full h-[30px] bg-white border border-gray-200 rounded-md px-2.5 pr-7 text-[12px] font-normal text-gray-800 appearance-none focus:outline-none focus:border-gray-400 transition-all cursor-pointer hover:border-gray-300"
                     >
                       <option value="newest">Cele mai noi</option>
                       <option value="oldest">Cele mai vechi</option>
                       <option value="expensive">Cele mai scumpe</option>
                       <option value="cheap">Cele mai ieftine</option>
                     </select>
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[--color-text-placeholder]">
-                      <ChevronDown size={18} />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                      <ChevronDown size={14} />
                     </div>
                   </div>
                 </div>
@@ -1635,24 +1634,24 @@ export const Home: React.FC = () => {
             className="fixed inset-0 bg-gray-50 z-[200] overflow-y-auto flex flex-col"
             onScroll={handleDetailsScroll}
           >
-            <div className="sticky top-0 bg-white border-b border-gray-100 h-[96px] min-h-[96px] max-h-[96px] shrink-0 box-border flex items-center px-5 gap-3 z-10 shadow-sm">
+            <div className="sticky top-0 bg-white border-b border-gray-200 h-[50px] min-h-[50px] max-h-[50px] shrink-0 box-border flex items-center px-4 gap-2.5 z-10">
               <button 
                 onClick={handleCloseDetails}
-                className="w-10 h-10 flex items-center justify-center bg-white rounded-full cursor-pointer hover:bg-gray-50 transition-colors shrink-0 border border-gray-100 shadow-sm"
+                className="w-7 h-7 flex items-center justify-center bg-white rounded-md cursor-pointer hover:bg-gray-50 transition-colors shrink-0 border border-gray-200"
               >
-                <ChevronLeft size={20} strokeWidth={2.5} className="text-gray-400 hover:text-gray-900" />
+                <ChevronLeft size={16} className="text-gray-500 hover:text-gray-900" />
               </button>
  
               <div className="flex-1 min-w-0 pr-2">
-                <h2 className="text-[16px] font-bold text-[--color-text-main] truncate tracking-tight leading-none mb-1">{selectedLead.title}</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-[--color-accent] uppercase tracking-[0.15em] leading-none">{selectedLead.price}</span>
-                  <div className="w-1 h-1 bg-gray-200 rounded-full" />
-                  <span className="text-[11px] text-[--color-text-secondary] font-bold uppercase tracking-wider leading-none">{selectedLead.ownerName}</span>
+                <h2 className="text-[13px] font-semibold text-gray-900 truncate tracking-tight leading-tight mb-0.5">{selectedLead.title}</h2>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-[11px] font-mono font-semibold text-gray-900">{selectedLead.price}</span>
+                  <span className="text-gray-300">·</span>
+                  <span className="text-[11px] text-gray-500 font-medium truncate">{selectedLead.ownerName}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button 
                   onClick={async () => {
                     if (selectedLead.status === 'Sterse') {
@@ -1663,10 +1662,10 @@ export const Home: React.FC = () => {
                       toast.success('Proprietate mutată în Șterse');
                     }
                   }}
-                  className="w-10 h-10 flex items-center justify-center bg-white border border-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors shrink-0 shadow-sm"
+                  className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:text-red-600 transition-colors shrink-0"
                   title={selectedLead.status === 'Sterse' ? "Ștergere Definitivă" : "Mută în Șterse"}
                 >
-                  <Trash2 size={20} />
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>
@@ -2332,14 +2331,14 @@ const BasicInfoSection = ({
 );
 
 const InfoRow = ({ label, value, isLink }: { label: string, value: string, isLink?: boolean }) => (
-  <div className="flex flex-col gap-1 py-4 border-b border-gray-50 last:border-0">
-    <span className="text-[12px] font-bold text-[--color-text-placeholder] uppercase tracking-wider">{label}</span>
+  <div className="flex flex-col gap-0.5 py-2 border-b border-gray-100 last:border-0">
+    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
     {isLink ? (
-      <a href={value} target="_blank" rel="noreferrer" className="text-[15px] text-[--color-accent] font-medium truncate hover:opacity-80">
+      <a href={value} target="_blank" rel="noreferrer" className="text-[12px] text-indigo-600 font-medium truncate hover:underline">
         Deschide URL
       </a>
     ) : (
-      <span className="text-[15px] text-[--color-text-main] font-medium">{value}</span>
+      <span className="text-[12px] text-gray-800 font-medium">{value}</span>
     )}
   </div>
 );
@@ -2347,12 +2346,12 @@ const InfoRow = ({ label, value, isLink }: { label: string, value: string, isLin
 const SectionCard = ({ id, title, children }: { id: string, title: string, children: React.ReactNode }) => (
   <div 
     id={id} 
-    className="bg-white rounded-[16px] border border-gray-100 shadow-sm overflow-hidden scroll-mt-24"
+    className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-16"
   >
-    <div className="h-14 flex items-center px-6 bg-gray-50/50 border-b border-gray-100">
-      <span className="text-[14px] font-bold text-[--color-text-main] uppercase tracking-wider">{title}</span>
+    <div className="h-9 flex items-center px-3.5 bg-gray-50/80 border-b border-gray-200">
+      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">{title}</span>
     </div>
-    <div className="p-6">{children}</div>
+    <div className="p-3.5">{children}</div>
   </div>
 );
 
@@ -2362,7 +2361,7 @@ const ExtractionViewer = ({ data, leadId, propertyId, onUpdate, basicInfoProps, 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       <SectionCard id="detaliigenerale" title="Detalii Generale">
         <DetaliiGeneraleSection 
           data={data?.crmData?.detaliiGenerale} 
@@ -2407,18 +2406,18 @@ const Accordion = ({ title, children, isOpen: isOpenProp, onToggle, defaultOpen 
   const toggle = onToggle || (() => setIsInternalOpen(!isInternalOpen));
 
   return (
-    <div className="rounded-[16px] border border-gray-100 overflow-hidden bg-white shadow-sm">
+    <div className="rounded-md border border-gray-200 overflow-hidden bg-white shadow-none">
       <button 
         onClick={toggle}
-        className="w-full h-14 flex items-center justify-between px-6 text-left transition-colors hover:bg-gray-50"
+        className="w-full h-9 flex items-center justify-between px-3 text-left transition-colors hover:bg-gray-50"
       >
-        <span className="text-[14px] font-bold text-[--color-text-main] uppercase tracking-wider">{title}</span>
-        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-[--color-text-placeholder]"><ChevronDown size={18} /></motion.div>
+        <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">{title}</span>
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-gray-400"><ChevronDown size={14} /></motion.div>
       </button>
       <AnimatePresence>
         {isOpen && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
-            <div className="p-5 border-t border-[#e5e7eb]">{children}</div>
+            <div className="p-3 border-t border-gray-100">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2429,26 +2428,26 @@ const Accordion = ({ title, children, isOpen: isOpenProp, onToggle, defaultOpen 
 const markdownComponents = {
   h1: () => null,
   h2: ({children}: any) => (
-    <h2 className="text-[18px] font-medium text-black tracking-tight mt-0 mb-3 font-sans capitalize">
+    <h2 className="text-[13px] font-semibold text-gray-900 tracking-tight mt-0 mb-2 font-sans capitalize">
       {children}
     </h2>
   ),
-  ul: ({children}: any) => <ul className="space-y-1 mb-6">{children}</ul>,
-  li: ({children}: any) => <li className="text-gray-600 border-b border-gray-50 py-2 last:border-0">{children}</li>,
+  ul: ({children}: any) => <ul className="space-y-0.5 mb-3">{children}</ul>,
+  li: ({children}: any) => <li className="text-gray-600 border-b border-gray-100 py-1 text-xs last:border-0">{children}</li>,
   table: ({children}: any) => {
     return (
-      <div className="mb-6 rounded-[16px] border border-gray-100 overflow-x-auto w-full group/table">
-        <table className="w-full text-left border-collapse min-w-full table-auto">
+      <div className="mb-3 rounded-md border border-gray-200 overflow-x-auto w-full group/table">
+        <table className="w-full text-left border-collapse min-w-full table-auto text-xs">
           {children}
         </table>
       </div>
     );
   },
-  thead: ({children}: any) => <thead className="bg-gray-50 border-b border-gray-100 text-gray-400">{children}</thead>,
+  thead: ({children}: any) => <thead className="bg-gray-50/80 border-b border-gray-200 text-gray-500 font-medium text-xs">{children}</thead>,
   th: ({children}: any) => {
     const isImageTable = getTextFromChildren(children).toLowerCase().includes("imagine");
     return (
-      <th className="px-5 py-3 text-[14px] font-bold capitalize tracking-wide first:w-[20%] first:min-w-[150px]">
+      <th className="px-3 py-1.5 text-[11px] font-semibold text-gray-700 capitalize tracking-wide first:w-[20%] first:min-w-[120px]">
         <TableHeaderCopyButton isImageTable={isImageTable}>{children}</TableHeaderCopyButton>
       </th>
     );
@@ -2468,8 +2467,8 @@ const markdownComponents = {
     const isCategoryLabel = (textContent === "living" || textContent === "bucătărie" || textContent === "dormitor" || textContent === "baie" || textContent === "alte spații");
 
     return (
-      <td className="px-5 py-5 text-[13px] border-b border-gray-50 text-gray-600 first:font-bold first:text-black first:w-[20%] first:min-w-[150px] relative group/row align-top">
-         <div className={`break-words whitespace-normal w-full overflow-hidden flex ${isImageCell ? 'flex-row flex-wrap gap-3' : 'flex-col gap-2'}`}>
+      <td className="px-3 py-1.5 text-[12px] border-b border-gray-100 text-gray-600 first:font-medium first:text-gray-900 first:w-[20%] first:min-w-[120px] relative group/row align-top">
+         <div className={`break-words whitespace-normal w-full overflow-hidden flex ${isImageCell ? 'flex-row flex-wrap gap-2' : 'flex-col gap-1'}`}>
             {children}
          </div>
          {isCategoryLabel ? (
@@ -2496,8 +2495,8 @@ const markdownComponents = {
     );
   },
   img: ({src, alt}: any) => src ? (
-    <div className="relative group/img inline-block" style={{ width: '80px' }}>
-      <img src={src} alt={alt} className="rounded-[16px] w-full h-20 object-cover border border-gray-100 shadow-sm transition-all" referrerPolicy="no-referrer" />
+    <div className="relative group/img inline-block" style={{ width: '64px' }}>
+      <img src={src} alt={alt} className="rounded w-full h-14 object-cover border border-gray-200 shadow-none transition-all" referrerPolicy="no-referrer" />
     </div>
   ) : null,
 };

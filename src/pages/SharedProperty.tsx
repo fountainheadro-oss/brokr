@@ -35,12 +35,12 @@ const SECTIONS = [
 const SectionCard = ({ id, title, children }: { id: string, title: string, children: React.ReactNode }) => (
   <div 
     id={id} 
-    className="bg-white rounded-[16px] border border-gray-100 shadow-sm overflow-hidden scroll-mt-24"
+    className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-16"
   >
-    <div className="h-14 flex items-center px-6 bg-gray-50/50 border-b border-gray-100">
-      <span className="text-[14px] font-bold text-[--color-text-main] uppercase tracking-wider">{title}</span>
+    <div className="h-9 flex items-center px-3.5 bg-gray-50/80 border-b border-gray-200">
+      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">{title}</span>
     </div>
-    <div className="p-6">{children}</div>
+    <div className="p-3.5">{children}</div>
   </div>
 );
 
@@ -212,31 +212,27 @@ export const SharedProperty: React.FC = () => {
       onScroll={handleScroll}
     >
       {/* Top Header */}
-      <header className="sticky top-0 bg-white border-b border-gray-100 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-20 flex items-center justify-between gap-4">
+      <header className="sticky top-0 bg-white border-b border-gray-200 z-30 shadow-none">
+        <div className="max-w-6xl mx-auto px-4 h-[50px] flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
               {lead.transactionType && (
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
-                  lead.transactionType === "Vânzare" || (lead.transactionType as string) === "Vanzare"
-                    ? "bg-blue-50 text-blue-600"
-                    : "bg-orange-50 text-orange-600"
-                }`}>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-medium uppercase tracking-wider bg-gray-100 border border-gray-200 text-gray-700">
                   {lead.transactionType}
                 </span>
               )}
               {lead.categoria && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-600">
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-medium uppercase tracking-wider bg-gray-50 border border-gray-200 text-gray-600">
                   {lead.categoria}
                 </span>
               )}
               {displayPrice && (
-                <span className="text-[12px] font-extrabold text-[--color-accent] uppercase tracking-wider">
+                <span className="text-[11px] font-mono font-semibold text-gray-900 ml-1">
                   {displayPrice}
                 </span>
               )}
             </div>
-            <h1 className="text-base lg:text-lg font-bold text-gray-900 truncate tracking-tight">
+            <h1 className="text-xs font-semibold text-gray-900 truncate tracking-tight">
               {displayTitle}
             </h1>
           </div>
@@ -244,31 +240,31 @@ export const SharedProperty: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleCopyLink}
-              className={`h-10 px-4 rounded-full text-xs font-bold transition-all flex items-center gap-2 shadow-sm ${
+              className={`h-7 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
                 isCopied 
                   ? "bg-green-600 text-white" 
-                  : "bg-gray-900 text-white hover:bg-gray-800"
+                  : "bg-gray-900 text-white hover:bg-black"
               }`}
               title="Copiază linkul proprietății"
             >
-              {isCopied ? <Check size={14} /> : <Share2 size={14} />}
-              <span className="hidden sm:inline">{isCopied ? "Link Copiat!" : "Distribuie"}</span>
+              {isCopied ? <Check size={13} /> : <Share2 size={13} />}
+              <span>{isCopied ? "Link Copiat!" : "Distribuie"}</span>
             </button>
           </div>
         </div>
 
         {/* Mobile Sticky Section Navigator */}
-        <div className="lg:hidden border-t border-gray-100 bg-white/95 backdrop-blur-sm px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar items-center">
+        <div className="lg:hidden border-t border-gray-200 bg-white px-3 py-1 flex gap-1 overflow-x-auto no-scrollbar items-center">
           {SECTIONS.map((sect) => {
             const isSelected = activeSection === sect.id;
             return (
               <button
                 key={sect.id}
                 onClick={() => scrollToSection(sect.id)}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                className={`shrink-0 px-2 py-0.5 rounded text-[11px] font-medium transition-all border ${
                   isSelected
-                    ? "bg-gray-900 text-white border-gray-900 shadow-sm"
-                    : "bg-white text-gray-500 border-gray-100 hover:text-gray-900"
+                    ? "bg-gray-900 text-white border-gray-900"
+                    : "bg-white text-gray-600 border-gray-200 hover:text-gray-900"
                 }`}
               >
                 {sect.label}
@@ -278,12 +274,12 @@ export const SharedProperty: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Body - 2 Columns: Main Content Area + Right Side Column (No Left Most Column, No Informatii de Baza) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start pb-16">
+      {/* Main Body - 2 Columns */}
+      <main className="flex-1 max-w-6xl w-full mx-auto p-4 lg:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4 items-start pb-12">
           
-          {/* Main Content Area (Stripped-down: No "Informații de Bază" section) */}
-          <div className="min-w-0 space-y-6">
+          {/* Main Content Area */}
+          <div className="min-w-0 space-y-3.5">
             <SectionCard id="detaliigenerale" title="Detalii Generale">
               <DetaliiGeneraleSection 
                 data={crmData?.detaliiGenerale} 
@@ -335,14 +331,12 @@ export const SharedProperty: React.FC = () => {
           </div>
 
           {/* Right Side Column (Sticky Navigator & Share Card) */}
-          <div className="hidden lg:block lg:sticky lg:top-[104px] lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto no-scrollbar space-y-4">
+          <div className="hidden lg:block lg:sticky lg:top-[66px] lg:max-h-[calc(100vh-80px)] lg:overflow-y-auto no-scrollbar space-y-3">
             
             {/* Page Navigation */}
-            <div className="bg-white p-5 rounded-[16px] border border-gray-100 shadow-sm space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Navigare Secțiuni</h3>
-              <div className="space-y-1.5 relative">
-                <div className="absolute left-[13px] top-3 bottom-3 w-0.5 bg-gray-100" />
-                
+            <div className="bg-white p-3.5 rounded-md border border-gray-200 shadow-none space-y-2">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Navigare Secțiuni</h3>
+              <div className="space-y-0.5">
                 {SECTIONS.map((sect) => {
                   const isSelected = activeSection === sect.id;
                   
@@ -350,19 +344,14 @@ export const SharedProperty: React.FC = () => {
                     <button
                       key={sect.id}
                       onClick={() => scrollToSection(sect.id)}
-                      className={`w-full flex items-center justify-between text-left h-[44px] pl-7 pr-3 rounded-lg text-[14px] font-medium transition-all group relative ${
+                      className={`w-full flex items-center justify-between text-left h-7 px-2.5 rounded text-xs transition-all ${
                         isSelected 
-                          ? "text-gray-900 bg-gray-100/80 font-bold" 
-                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-50/40"
+                          ? "text-gray-900 bg-gray-100 font-semibold" 
+                          : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                       }`}
                     >
-                      <div className={`absolute left-[14px] top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border transition-all ${
-                        isSelected 
-                          ? "bg-[--color-accent] border-[--color-accent] scale-125" 
-                          : "bg-white border-gray-200 group-hover:border-gray-400"
-                      }`} />
-
                       <span className="truncate">{sect.label}</span>
+                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-gray-900" />}
                     </button>
                   );
                 })}
@@ -370,37 +359,36 @@ export const SharedProperty: React.FC = () => {
             </div>
 
             {/* Under the page navigation: Share the Link Card */}
-            <div className="bg-white p-5 rounded-[16px] border border-gray-100 shadow-sm space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-orange-50 text-[--color-accent] flex items-center justify-center shrink-0">
-                  <Share2 size={16} />
+            <div className="bg-white p-3.5 rounded-md border border-gray-200 shadow-none space-y-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                  <Share2 size={13} />
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-[12px] font-bold text-gray-900 uppercase tracking-wider">Distribuie Proprietatea</h4>
-                  <p className="text-[10px] text-gray-400 font-medium truncate">Link accesibil pe internet</p>
+                  <h4 className="text-[11px] font-semibold text-gray-900 uppercase tracking-wider">Distribuie Proprietatea</h4>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl p-1.5 pl-3">
-                <span className="text-[11px] text-gray-500 font-mono truncate flex-1 select-all" title={getPublicShareUrl(lead?.id || id || "")}>
+              <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded p-1 pl-2">
+                <span className="text-[11px] text-gray-600 font-mono truncate flex-1 select-all" title={getPublicShareUrl(lead?.id || id || "")}>
                   {getPublicShareUrl(lead?.id || id || "")}
                 </span>
                 <button
                   onClick={handleCopyLink}
-                  className={`h-8 px-3 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  className={`h-6 px-2 rounded text-[11px] font-medium transition-all flex items-center gap-1 shrink-0 ${
                     isCopied
                       ? "bg-green-600 text-white"
-                      : "bg-gray-900 text-white hover:bg-gray-800"
+                      : "bg-gray-900 text-white hover:bg-black"
                   }`}
                   title="Copiază link-ul"
                 >
-                  {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                  {isCopied ? <Check size={11} /> : <Copy size={11} />}
                   <span>{isCopied ? "Copiat" : "Copiază"}</span>
                 </button>
               </div>
 
-              <p className="text-[10px] text-gray-400 leading-relaxed">
-                Oricine accesează acest link poate vedea detaliile, descrierea, caracteristicile și fotografiile proprietății.
+              <p className="text-[10px] text-gray-400 leading-normal">
+                Link public accesibil oricui pe internet fără cont.
               </p>
             </div>
 

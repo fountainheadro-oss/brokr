@@ -22,29 +22,34 @@ export const LeadList: React.FC<LeadListProps> = ({
 
   if (groups.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-12">
-        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-          <div className="w-8 h-8 border-2 border-dashed border-gray-200 rounded-lg" />
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <div className="w-10 h-10 bg-gray-100 rounded-md flex items-center justify-center mb-3">
+          <div className="w-5 h-5 border border-dashed border-gray-300 rounded" />
         </div>
-        <p className="text-[12px] font-bold text-gray-400 tracking-wider">Nicio Proprietate Găsită</p>
+        <p className="text-[12px] font-medium text-gray-500">Nicio Proprietate Găsită</p>
       </div>
     );
   }
 
   return (
-    <div className="p-5 space-y-10 overflow-y-auto max-h-full custom-scrollbar">
+    <div className="p-4 space-y-5 overflow-y-auto max-h-full custom-scrollbar">
       {groups.map((groupTitle) => (
-        <div key={groupTitle} className="space-y-5">
-          <h3 className="text-[14px] font-bold text-gray-400 tracking-wider px-2">
-            {groupTitle}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div key={groupTitle} className="space-y-2.5">
+          <div className="flex items-center gap-2 px-1">
+            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+              {groupTitle}
+            </h3>
+            <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.2 rounded">
+              {groupedLeads[groupTitle].length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {groupedLeads[groupTitle].map((lead, index) => (
               <motion.div
                 key={lead.id || `lead-${index}-${lead.title}`}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.2 }}
                 className="h-full"
               >
                 <LeadCard 

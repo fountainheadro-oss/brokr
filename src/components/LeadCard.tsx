@@ -1,5 +1,5 @@
 import React from "react";
-import { Phone, User as UserIcon, MapPin, Tag, Users, Hash, ChevronLeft } from "lucide-react";
+import { Phone, User as UserIcon, MapPin, Tag, Users, Hash, ChevronRight } from "lucide-react";
 import { Lead } from "../services/leadsService";
 import { Contact } from "../services/contactsService";
 import { motion } from "motion/react";
@@ -19,10 +19,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({
   onContactClick,
   onQuickViewClick
 }) => {
-  const renterBuyerContacts = contacts
-    .filter(c => c.type === "Renter" || c.type === "Buyer")
-    .slice(0, 3);
-
   const images = lead.extractedData?.crmData?.imagini;
   const categoria = String(lead.extractedData?.crmData?.detaliiGenerale?.categoria || '').toLowerCase();
   const isResidential = !categoria.includes('comercial') && 
@@ -40,7 +36,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({
       (images?.baie?.[0]) || 
       (images?.alteSpatii?.[0])
     ) : (
-      (images?.alteSpatii?.[0]) || // Building overview/exterior usually here
+      (images?.alteSpatii?.[0]) || 
       (images?.living?.[0]) || 
       (images?.camera?.[0]) || 
       (images?.bucatarie?.[0]) || 
@@ -54,67 +50,57 @@ export const LeadCard: React.FC<LeadCardProps> = ({
 
   return (
     <motion.div
-      className="bg-white rounded-[16px] border border-gray-100 transition-all cursor-pointer group hover:shadow-md h-full flex flex-col overflow-hidden"
+      className="bg-white rounded-md border border-gray-200 transition-all cursor-pointer group hover:border-gray-300 hover:shadow-xs h-full flex flex-col overflow-hidden"
     >
       {/* Header Container */}
       <div 
         onClick={onClick}
-        className="p-5 flex justify-between items-center bg-white hover:bg-gray-50/50 transition-colors"
+        className="px-3.5 py-2.5 flex justify-between items-center bg-white hover:bg-gray-50/50 transition-colors border-b border-gray-100"
       >
-        <h3 className="text-[16px] font-bold text-[--color-text-main] leading-tight line-clamp-1 flex-1">
+        <h3 className="text-[13px] font-semibold text-gray-900 leading-snug line-clamp-1 flex-1 pr-2">
           {lead.title}
         </h3>
         {lead.propertyId && (
-          <span className="text-[16px] font-bold text-gray-400 bg-gray-50 border border-gray-100 px-3 py-0.5 rounded-md shrink-0 ml-3">
+          <span className="text-[11px] font-mono text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded shrink-0">
             #{lead.propertyId}
           </span>
         )}
       </div>
 
-      {/* Horizontal Border Edge to Edge */}
-      <div className="h-px bg-gray-100 w-full" />
-
-      {/* 100% Width Property Info Area */}
+      {/* Property Info Area */}
       <div 
         onClick={onClick}
-        className="p-5 bg-white hover:bg-gray-50/50 transition-colors flex-1 flex gap-5"
+        className="p-3 bg-white hover:bg-gray-50/30 transition-colors flex-1 flex gap-3"
       >
-        <div className="flex-1 space-y-2.5">
-          {/* Row 1: Type */}
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-medium text-gray-500">Tip:</span>
-            <span className="text-[14px] font-bold text-gray-700">
-              {lead.transactionType}
+        <div className="flex-1 space-y-1.5 min-w-0">
+          {/* Row 1: Type & Rooms */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="text-[11px] text-gray-400">Tip:</span>
+            <span className="font-medium text-gray-800">{lead.transactionType || "Nespecificat"}</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-[11px] text-gray-400">Cam:</span>
+            <span className="font-medium text-gray-800">{lead.extractedData?.crmData?.caracteristici?.detalii?.camere || "-"}</span>
+          </div>
+
+          {/* Row 2: Price */}
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-[11px] text-gray-400">Preț:</span>
+            <span className="font-semibold text-gray-900 font-mono">
+              {lead.price || "Nespecificat"}
             </span>
           </div>
 
-          {/* Row 2: Rooms */}
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-medium text-gray-500">Camere:</span>
-            <span className="text-[14px] font-bold text-gray-700">
-              {lead.extractedData?.crmData?.caracteristici?.detalii?.camere || "N/A"}
-            </span>
-          </div>
-
-          {/* Row 3: Price */}
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-medium text-gray-500">Preț:</span>
-            <span className="text-[14px] font-black text-[--color-accent]">
-              {lead.price}
-            </span>
-          </div>
-
-          {/* Row 4: Address */}
-          <div className="flex items-start gap-2">
-            <span className="text-[14px] font-medium text-gray-500 mt-0.5 shrink-0">Adresă:</span>
-            <span className="text-[14px] font-medium text-gray-600 line-clamp-2">
-              {lead.zone}
+          {/* Row 3: Address / Zone */}
+          <div className="flex items-start gap-1.5 text-xs">
+            <span className="text-[11px] text-gray-400 shrink-0">Zonă:</span>
+            <span className="text-gray-600 truncate text-[11px]">
+              {lead.zone || "București"}
             </span>
           </div>
         </div>
 
         {/* Thumbnail Image */}
-        <div className="h-24 aspect-video rounded-[16px] overflow-hidden bg-gray-50 shrink-0 border border-gray-100 shadow-sm self-center">
+        <div className="w-16 h-14 rounded overflow-hidden bg-gray-100 shrink-0 border border-gray-200 self-center">
           {firstImage ? (
             <img 
               src={firstImage} 
@@ -123,37 +109,35 @@ export const LeadCard: React.FC<LeadCardProps> = ({
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <MapPin size={24} className="text-gray-200" />
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <MapPin size={16} />
             </div>
           )}
         </div>
       </div>
 
-      <div className="h-px bg-gray-100 w-full" />
-
-      {/* Footer Area - Opens Modal */}
+      {/* Footer Area */}
       <div 
         onClick={(e) => {
           e.stopPropagation();
           onQuickViewClick?.();
         }}
-        className="p-5 bg-white flex items-center justify-between hover:bg-gray-50/50 transition-all text-[--color-text-placeholder]"
+        className="px-3 py-2 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between hover:bg-gray-100/60 transition-all text-xs"
       >
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-1.5">
             {[...Array(Math.min(3, contacts.length || 1))].map((_, i) => (
-              <div key={i} className="w-6 h-6 rounded-full bg-white border-2 border-gray-100 flex items-center justify-center">
-                <Users size={12} className="text-gray-400" />
+              <div key={i} className="w-4 h-4 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                <Users size={9} className="text-gray-400" />
               </div>
             ))}
           </div>
-          <span className="text-[16px] font-bold text-gray-600">
-            {contacts.length} contacte interesate
+          <span className="text-[11px] font-medium text-gray-500">
+            {contacts.length} {contacts.length === 1 ? 'contact' : 'contacte'}
           </span>
         </div>
-        <div className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-400 group-hover:text-[--color-accent] group-hover:border-[--color-accent]/20 transition-colors shadow-sm">
-          <ChevronLeft size={16} className="rotate-180" />
+        <div className="text-gray-400 group-hover:text-gray-700 transition-colors">
+          <ChevronRight size={14} />
         </div>
       </div>
     </motion.div>
