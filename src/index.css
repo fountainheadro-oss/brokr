@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&family=Inter:wght@400;500;600&family=Roboto:wght@400;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
+  --font-roboto: "Roboto", sans-serif;
+
+  /* Layout Constants */
+  --spacing-edge: 20px;
+  --spacing-bottom: 20px;
+  --component-height: 48px;
+  --otp-height: 72px;
+
+  /* Design Brand Colors (Active Theme) */
+  --color-primary: #000000;
+  --color-accent: #e04839;
+  --color-accent-light: #e66d61;
+  --color-text-main: #333333;
+  --color-text-secondary: #6a7282;
+  --color-text-placeholder: #999999;
+  --color-border: #e5e7eb;
+  --color-border-hover: #D1D5DB;
+  --color-bg-focus: #fdfdfd;
+  --color-bg-app: #ffffff;
+  --color-bg-card: #ffffff;
+
+  /* Global Borader Radius */
+  --radius-standard: 8px;
+}
+
+/* Common Design Utilities */
+@utility input-base {
+  border: 1px solid var(--color-border);
+  background-color: #ffffff;
+  font-size: 16px;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  color: #333333;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  border-radius: var(--radius-standard);
+  height: 48px;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+
+  &:hover {
+    border: 1px solid var(--color-border-hover);
+    background-color: var(--color-bg-focus);
+    color: #333333;
+  }
+
+  &:focus {
+    border: 1px solid var(--color-accent);
+    box-shadow: 0 0 0 4px rgba(224, 72, 57, 0.1);
+    background-color: var(--color-bg-focus);
+    color: #333333;
+  }
+}
+
+@utility button-base {
+  @apply h-[48px] px-8 font-semibold transition-all flex items-center justify-center gap-2;
+  border-radius: var(--radius-standard);
+}
+
+@layer base {
+  input::placeholder {
+    color: #999999;
+    opacity: 1;
+    font-size: 16px;
+  }
+  
+  /* Hide number input arrows */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  body {
+    background-color: var(--color-bg-app);
+    color: var(--color-text-main);
+    @apply font-sans antialiased selection:bg-accent/10 selection:text-accent;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+  }
+
+  html {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  h1, h2 {
+    @apply font-roboto font-normal text-[--color-text-main] text-[24px];
+  }
+
+  p {
+    @apply text-[--color-text-secondary] font-medium text-sm;
+  }
+
+  input[type="text"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="email"],
+  select {
+    @apply input-base;
+    height: 48px;
+  }
+
+  textarea {
+    @apply input-base;
+    border-radius: var(--radius-standard) !important;
+    min-height: 100px;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    height: auto;
+  }
+}
+
+@layer utilities {
+  .gap-edge {
+    @apply p-[--spacing-edge];
+  }
+  
+  .shadow-soft {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+  }
+}
+

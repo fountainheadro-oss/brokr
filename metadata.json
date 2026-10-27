@@ -1,0 +1,6 @@
+{
+  "name": "Miner.AI",
+  "description": "Extracție de date imobiliare asistată de AI. Transformă URL-urile anunțurilor în date structurate și categorisite automat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

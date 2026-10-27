@@ -1,0 +1,1435 @@
+import "dotenv/config";
+import express from "express";
+import { createServer as createViteServer } from "vite";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+import axios from "axios";
+import { convert } from "html-to-text";
+import * as cheerio from "cheerio";
+import { aiCallRouter, setupWebSocket } from "./server/ai-call/router";
+import { setupBackgroundNotifications, registerNotificationRoutes } from "./server/background-notifications";
+import { serverExtractBasicData, serverExtractData } from "./server/geminiService";
+import { GoogleGenAI, Type } from "@google/genai";
+import { defaultFormats, defaultPlugins } from "jimp";
+import { createJimp } from "@jimp/core";
+import webp from "@jimp/wasm-webp";
+
+// Intercept global fetch so we can load @jsquash/webp WASM files locally instead of triggering sandbox fetch errors
+const originalFetch = global.fetch;
+global.fetch = async function(input: any, init: any) {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input && input.url ? input.url : "");
+  if (url && (url.endsWith(".wasm") || url.includes(".wasm"))) {
+    const fileName = path.basename(url.split("?")[0]);
+    let wasmPath = "";
+    if (fileName.includes("dec")) {
+      wasmPath = path.resolve("./node_modules/@jsquash/webp/codec/dec", fileName);
+    } else if (fileName.includes("enc")) {
+      wasmPath = path.resolve("./node_modules/@jsquash/webp/codec/enc", fileName);
+    }
+    
+    if (wasmPath && fs.existsSync(wasmPath)) {
+      const buffer = fs.readFileSync(wasmPath);
+      return new Response(buffer, {
+        headers: { "Content-Type": "application/wasm" }
+      });
+    }
+  }
+  return originalFetch(input, init);
+} as any;
+
+const Jimp = createJimp({
+  formats: [...defaultFormats, webp],
+  plugins: defaultPlugins
+});
+
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY || "",
+  httpOptions: {
+    headers: {
+      "User-Agent": "aistudio-build"
+    }
+  }
+});
+
+interface CleanedImageCacheEntry {
+  mimeType: string;
+  data: Buffer;
+}
+const imageCleanCache = new Map<string, CleanedImageCacheEntry>();
+
+function addToImageCache(url: string, entry: CleanedImageCacheEntry) {
+  if (imageCleanCache.size > 150) {
+    const keys = Array.from(imageCleanCache.keys());
+    for (let idx = 0; idx < 30; idx++) {
+      imageCleanCache.delete(keys[idx]);
+    }
+  }
+  imageCleanCache.set(url, entry);
+}
+
+async function cleanImageWatermarks(buffer: Buffer, mimeType: string, imageUrl: string): Promise<Buffer> {
+  if (!mimeType.startsWith("image/") || mimeType.includes("svg")) {
+    return buffer;
+  }
+  
+  try {
+    console.log(`[Watermark Remover] Reading image: ${imageUrl.substring(0, 100)}...`);
+    const image = await Jimp.read(buffer);
+    const { width, height } = image;
+    
+    // Skip tiny images
+    if (width < 300 || height < 300) {
+      return buffer;
+    }
+    
+    console.log(`[Watermark Remover] Image dimensions: ${width}x${height}. Detecting watermarks with Gemini...`);
+    
+    const base64 = buffer.toString("base64");
+    const prompt = "Detect all prominent watermarks, text overlays (like owner or agent phone/email/names, e.g. 'George Leotescu', 'Storia', agency logos), stamp overlays, banner labels, or company logos overlayed on this photo. For each item found, provide its exact ymin, xmin, ymax, xmax coordinates normalized from 0 to 1000.";
+    
+    const genResponse = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        {
+          inlineData: {
+            data: base64,
+            mimeType: mimeType
+          }
+        },
+        prompt
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            watermarks: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  ymin: { type: Type.INTEGER, description: "Normalized ymin from 0 to 1000" },
+                  xmin: { type: Type.INTEGER, description: "Normalized xmin from 0 to 1000" },
+                  ymax: { type: Type.INTEGER, description: "Normalized ymax from 0 to 1000" },
+                  xmax: { type: Type.INTEGER, description: "Normalized xmax from 0 to 1000" },
+                  label: { type: Type.STRING, description: "Text or type of overlay found" }
+                },
+                required: ["ymin", "xmin", "ymax", "xmax"]
+              }
+            }
+          },
+          required: ["watermarks"]
+        }
+      }
+    });
+    
+    const resText = genResponse.text;
+    if (!resText) {
+      console.log(`[Watermark Remover] No response from Gemini watermark detector`);
+      return buffer;
+    }
+    
+    const parsed = JSON.parse(resText);
+    const watermarks = parsed?.watermarks || [];
+    console.log(`[Watermark Remover] Gemini detected ${watermarks.length} watermarks:`, JSON.stringify(watermarks));
+    
+    if (watermarks.length === 0) {
+      console.log(`[Watermark Remover] Image is already clean.`);
+      return buffer;
+    }
+    
+    for (const box of watermarks) {
+      let { ymin, xmin, ymax, xmax } = box;
+      if (ymin > ymax) [ymin, ymax] = [ymax, ymin];
+      if (xmin > xmax) [xmin, xmax] = [xmax, xmin];
+      
+      ymin = Math.max(0, Math.min(1000, ymin));
+      xmin = Math.max(0, Math.min(1000, xmin));
+      ymax = Math.max(0, Math.min(1000, ymax));
+      xmax = Math.max(0, Math.min(1000, xmax));
+      
+      const startY = Math.floor((ymin / 1000) * height);
+      const startX = Math.floor((xmin / 1000) * width);
+      const boxHeight = Math.ceil(((ymax - ymin) / 1000) * height);
+      const boxWidth = Math.ceil(((xmax - xmin) / 1000) * width);
+      
+      if (boxWidth > 5 && boxHeight > 5 && startX + boxWidth <= width && startY + boxHeight <= height) {
+        console.log(`[Watermark Remover] Reconstructing region using inpainting: x=${startX}, y=${startY}, w=${boxWidth}, h=${boxHeight}`);
+        
+        // Setup border pixel cache for extremely fast lookups
+        const borderLeft: number[] = [];
+        const borderRight: number[] = [];
+        const borderTop: number[] = [];
+        const borderBottom: number[] = [];
+
+        // Pre-fetch left border safely (at startX - 2 or clamped)
+        const leftX = Math.max(0, startX - 2);
+        for (let y = 0; y < boxHeight; y++) {
+          borderLeft.push(image.getPixelColor(leftX, startY + y));
+        }
+
+        // Pre-fetch right border safely (at startX + boxWidth + 1 or clamped)
+        const rightX = Math.min(width - 1, startX + boxWidth + 1);
+        for (let y = 0; y < boxHeight; y++) {
+          borderRight.push(image.getPixelColor(rightX, startY + y));
+        }
+
+        // Pre-fetch top border safely (at startY - 2 or clamped)
+        const topY = Math.max(0, startY - 2);
+        for (let x = 0; x < boxWidth; x++) {
+          borderTop.push(image.getPixelColor(startX + x, topY));
+        }
+
+        // Pre-fetch bottom border safely (at startY + boxHeight + 1 or clamped)
+        const bottomY = Math.min(height - 1, startY + boxHeight + 1);
+        for (let x = 0; x < boxWidth; x++) {
+          borderBottom.push(image.getPixelColor(startX + x, bottomY));
+        }
+
+        const getRGBA = (color: number) => {
+          return {
+            r: (color >> 24) & 0xFF,
+            g: (color >> 16) & 0xFF,
+            b: (color >> 8) & 0xFF,
+            a: color & 0xFF
+          };
+        };
+
+        // Fill the region using Inverse Distance Weighting (IDW)
+        for (let y = 0; y < boxHeight; y++) {
+          const globalY = startY + y;
+          for (let x = 0; x < boxWidth; x++) {
+            const globalX = startX + x;
+
+            const dxLeft = x + 1;
+            const dxRight = boxWidth - x;
+            const dyTop = y + 1;
+            const dyBottom = boxHeight - y;
+
+            const wLeft = 1 / (dxLeft * dxLeft);
+            const wRight = 1 / (dxRight * dxRight);
+            const wTop = 1 / (dyTop * dyTop);
+            const wBottom = 1 / (dyBottom * dyBottom);
+
+            const sumW = wLeft + wRight + wTop + wBottom;
+
+            if (sumW > 0) {
+              const cLeft = getRGBA(borderLeft[y]);
+              const cRight = getRGBA(borderRight[y]);
+              const cTop = getRGBA(borderTop[x]);
+              const cBottom = getRGBA(borderBottom[x]);
+
+              let r = (cLeft.r * wLeft + cRight.r * wRight + cTop.r * wTop + cBottom.r * wBottom) / sumW;
+              let g = (cLeft.g * wLeft + cRight.g * wRight + cTop.g * wTop + cBottom.g * wBottom) / sumW;
+              let b = (cLeft.b * wLeft + cRight.b * wRight + cTop.b * wTop + cBottom.b * wBottom) / sumW;
+              let a = (cLeft.a * wLeft + cRight.a * wRight + cTop.a * wTop + cBottom.a * wBottom) / sumW;
+
+              // Add a very subtle amount of camera sensor noise (±1.5 range) to preserve image texture naturally
+              const noiseRange = 1.5;
+              const noise = (Math.random() - 0.5) * noiseRange;
+              r = Math.max(0, Math.min(255, r + noise));
+              g = Math.max(0, Math.min(255, g + noise));
+              b = Math.max(0, Math.min(255, b + noise));
+
+              // Convert back to 32-bit unsigned RGBA color integer
+              const newColor = (((Math.round(r) & 0xFF) << 24) |
+                                ((Math.round(g) & 0xFF) << 16) |
+                                ((Math.round(b) & 0xFF) << 8) |
+                                (Math.round(a) & 0xFF)) >>> 0;
+
+              image.setPixelColor(newColor, globalX, globalY);
+            }
+          }
+        }
+      }
+    }
+    
+    const cleanedBuffer = await image.getBuffer(mimeType as any);
+    console.log(`[Watermark Remover] Cleaned! Original size: ${buffer.length}, Cleaned size: ${cleanedBuffer.length}`);
+    return cleanedBuffer;
+  } catch (err: any) {
+    console.error(`[Watermark Remover] Error cleaning watermark for ${imageUrl}:`, err.message);
+    return buffer;
+  }
+}
+
+// ESM/CJS compatibility for paths
+const getDirname = () => {
+  try {
+    return path.dirname(fileURLToPath(import.meta.url));
+  } catch (e) {
+    // @ts-ignore
+    return __dirname;
+  }
+};
+
+const __dirname = getDirname();
+
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+
+  // Global Logging Middleware
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
+  app.use(express.json());
+
+  // Mount AI Call Router
+  app.use("/api/ai-call", aiCallRouter);
+
+  // Register notification synchronization endpoints
+  registerNotificationRoutes(app);
+
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // API endpoint to extract basic data using server-side Gemini
+  app.post("/api/extract-basic", async (req, res) => {
+    try {
+      const { content, title } = req.body;
+      const cleanContent = (content || "").trim();
+      const cleanTitle = (title || "").trim();
+      if (!cleanContent && !cleanTitle) {
+        return res.status(400).json({ error: "Content and Title parameters are required" });
+      }
+      const finalTitle = cleanTitle || "Proprietate imobiliară";
+      const finalContent = cleanContent || finalTitle;
+
+      console.log(`[Server] Process /api/extract-basic for Title: ${finalTitle}`);
+      const result = await serverExtractBasicData(finalContent, finalTitle);
+      res.json(result);
+    } catch (e: any) {
+      console.error("[Server] /api/extract-basic error:", e);
+      res.status(500).json({ error: e.message || "Failed to extract basic data" });
+    }
+  });
+
+  // API endpoint to extract full structured data using server-side Gemini
+  app.post("/api/extract-data", async (req, res) => {
+    try {
+      const { content, title, imageUrls, propertyId, propertyUrl } = req.body;
+      const cleanContent = (content || "").trim();
+      const cleanTitle = (title || "").trim();
+      if (!cleanContent && !cleanTitle) {
+        return res.status(400).json({ error: "Content and Title parameters are required" });
+      }
+      const finalTitle = cleanTitle || "Proprietate imobiliară";
+      const finalContent = cleanContent || finalTitle;
+
+      console.log(`[Server] Process /api/extract-data for Property ID: ${propertyId || "GOL"}`);
+      const result = await serverExtractData(finalContent, finalTitle, imageUrls, propertyId, propertyUrl);
+      res.json(result);
+    } catch (e: any) {
+      console.error("[Server] /api/extract-data error:", e);
+      res.status(500).json({ error: e.message || "Failed to extract content data" });
+    }
+  });
+
+  // Public property endpoint for shared property links
+  app.get("/api/public-property/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!id) return res.status(400).json({ error: "Property ID required" });
+
+      const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+      if (!fs.existsSync(configPath)) {
+        return res.status(500).json({ error: "Firebase config not found" });
+      }
+      const fbConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const dbId = fbConfig.firestoreDatabaseId || "(default)";
+      const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${fbConfig.projectId}/databases/${dbId}/documents/leads/${encodeURIComponent(id)}?key=${fbConfig.apiKey}`;
+      
+      let docData: any = null;
+      let docId = id;
+
+      try {
+        const response = await axios.get(firestoreUrl, { timeout: 8000 });
+        if (response.data) {
+          docData = response.data;
+        }
+      } catch (directErr: any) {
+        if (directErr.response && directErr.response.status === 404) {
+          // If not found by document ID, try structuredQuery by propertyId field
+          try {
+            const queryUrl = `https://firestore.googleapis.com/v1/projects/${fbConfig.projectId}/databases/${dbId}/documents:runQuery?key=${fbConfig.apiKey}`;
+            const queryBody = {
+              structuredQuery: {
+                from: [{ collectionId: "leads" }],
+                where: {
+                  fieldFilter: {
+                    field: { fieldPath: "propertyId" },
+                    op: "EQUAL",
+                    value: { stringValue: id }
+                  }
+                },
+                limit: 1
+              }
+            };
+            const queryRes = await axios.post(queryUrl, queryBody, { timeout: 8000 });
+            if (Array.isArray(queryRes.data) && queryRes.data[0]?.document) {
+              docData = queryRes.data[0].document;
+              const nameParts = (docData.name || "").split("/");
+              docId = nameParts[nameParts.length - 1] || id;
+            }
+          } catch (queryErr: any) {
+            console.warn("[Server] propertyId fallback query failed:", queryErr.message);
+          }
+        } else {
+          throw directErr;
+        }
+      }
+
+      if (!docData) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      // Convert Firestore document fields to clean JS object
+      const parseValue = (fieldObj: any): any => {
+        if (!fieldObj || typeof fieldObj !== 'object') return fieldObj;
+        if ('stringValue' in fieldObj) return fieldObj.stringValue;
+        if ('integerValue' in fieldObj) return Number(fieldObj.integerValue);
+        if ('doubleValue' in fieldObj) return Number(fieldObj.doubleValue);
+        if ('booleanValue' in fieldObj) return fieldObj.booleanValue;
+        if ('timestampValue' in fieldObj) return fieldObj.timestampValue;
+        if ('nullValue' in fieldObj) return null;
+        if ('mapValue' in fieldObj) {
+          const resObj: any = {};
+          const fields = fieldObj.mapValue.fields || {};
+          for (const k of Object.keys(fields)) {
+            resObj[k] = parseValue(fields[k]);
+          }
+          return resObj;
+        }
+        if ('arrayValue' in fieldObj) {
+          const values = fieldObj.arrayValue.values || [];
+          return values.map((v: any) => parseValue(v));
+        }
+        return fieldObj;
+      };
+
+      const result: any = { id: docId };
+      const fields = docData.fields || {};
+      for (const k of Object.keys(fields)) {
+        result[k] = parseValue(fields[k]);
+      }
+
+      res.json(result);
+    } catch (e: any) {
+      if (e.response && e.response.status === 404) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+      console.error("[Server] /api/public-property/:id error:", e.message || e);
+      res.status(500).json({ error: "Failed to fetch public property" });
+    }
+  });
+
+  // API endpoint for crawling
+  app.post("/api/crawl", async (req, res, next) => {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    const userAgents = [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+    ];
+
+    let lastError: any = null;
+    
+    // Try with a few different User Agents if it fails with 503 or 403
+    for (let i = 0; i < 4; i++) {
+      try {
+        console.log(`Fetching URL (attempt ${i+1}): ${url}`);
+        const response = await axios.get(url, {
+          headers: {
+            "User-Agent": userAgents[i % userAgents.length],
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Accept-Language": "ro-RO,ro;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "max-age=0",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Ch-Ua": '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1"
+          },
+          timeout: 20000,
+          validateStatus: (status) => status < 600 // Allow 5xx so we can handle them manually
+        });
+
+        if (response.status === 403 || response.status === 429 || response.status === 503) {
+           console.log(`Target site returned ${response.status} on attempt ${i+1}, retrying...`);
+           lastError = new Error(`Site returned ${response.status}`);
+           await new Promise(r => setTimeout(r, 2000 * (i + 1))); // Exponential backoff
+           continue; 
+        }
+
+        if (response.status >= 400) {
+           throw new Error(`HTTP Error ${response.status}`);
+        }
+
+        const html = response.data;
+      const $ = cheerio.load(html);
+
+      // Extract some basic metadata
+      const title = $("title").text() || "No title found";
+      
+      // Extract image URLs
+      const images: string[] = [];
+      const imageExtensions = /\.(jpeg|jpg|gif|png|webp|avif)/i;
+      const socialMediaBlocked = ["facebook.com", "linkedin.com", "twitter.com", "instagram.com", "youtube.com", "pinterest.com", "tiktok.com"];
+      const adKeywords = ["google-analytics", "ads.", "doubleclick", "/ads/", "/banners/"];
+
+      // Filter out elements that are likely unrelated to the property (similar ads, recommendations, etc.)
+      const unrelatedSelectors = [
+        "aside", "footer", "nav", ".recommendations", ".featured-offers", ".similar-offers", 
+        ".others-ads", ".suggested-offers", "[data-testid=\"recommendations\"]", 
+        ".listing-related", ".related-ads", "#ad-recommendations", ".bottom-ads"
+      ];
+      
+      unrelatedSelectors.forEach(selector => {
+        $(selector).remove();
+      });
+
+      $("img, a, picture source, meta[property='og:image'], [data-src], [data-lazy], [data-full], [data-lazy-src], [data-original], [data-src-full], [data-zoom], [style*='background-image'], [data-testid='swiper-image'], [data-srcset], [data-image], [data-gallery], [data-href], [data-img], [data-url], [data-src-large], [itemprop='image'], [data-src-gallery], [data-gallery-src], [data-lazy-original], [data-img-src], [data-gallery], [data-full-img]").each((_, el) => {
+        const $el = $(el);
+        const src = $el.attr("src");
+        const dataSrc = $el.attr("data-src") || $el.attr("data-lazy") || $el.attr("data-full") || $el.attr("data-lazy-src") || $el.attr("data-srcset") || $el.attr("data-image") || $el.attr("data-gallery") || $el.attr("data-url") || $el.attr("data-src-large") || $el.attr("itemprop") || $el.attr("data-src-gallery") || $el.attr("data-gallery-src") || $el.attr("data-lazy-original") || $el.attr("data-img-src") || $el.attr("data-full-img");
+        const srcset = $el.attr("srcset") || $el.attr("data-srcset") || $el.attr("data-lazy-srcset");
+        const content = $el.attr("content"); // for meta tags
+        const originalSrc = $el.attr("data-original") || $el.attr("data-src-full") || $el.attr("data-zoom") || $el.attr("data-lazy-srcset") || $el.attr("data-img");
+        const href = ($el.prop("tagName") === "A" || $el.prop("tagName") === "LINK") ? $el.attr("href") : $el.attr("data-href");
+        const style = $el.attr("style");
+        const bgImage = style ? style.match(/url\(['"]?([^'"]+)['"]?\)/)?.[1] : null;
+        
+        let candidates = [originalSrc, dataSrc, src, href, bgImage, content];
+        
+        // Handle srcset for high-res options
+        if (srcset && typeof srcset === "string") {
+          const sources = srcset.split(",").map(s => s.trim().split(" ")[0]);
+          candidates = [...candidates, ...sources];
+        }
+
+        candidates.forEach(rawUrl => {
+          if (!rawUrl || typeof rawUrl !== "string") return;
+          
+          let absoluteUrl = rawUrl.trim();
+          // Handle escaped slashes in strings
+          absoluteUrl = absoluteUrl.replace(/\\/g, "");
+          
+          if (absoluteUrl.startsWith("//")) {
+            absoluteUrl = "https:" + absoluteUrl;
+          } else if (absoluteUrl.startsWith("/") && !absoluteUrl.startsWith("//")) {
+            try {
+              const urlObj = new URL(url);
+              absoluteUrl = urlObj.origin + absoluteUrl;
+            } catch (e) {}
+          }
+          
+          if (!absoluteUrl.startsWith("http")) return;
+          
+          const isSocial = socialMediaBlocked.some(s => absoluteUrl.toLowerCase().includes(s));
+          const isAd = adKeywords.some(k => absoluteUrl.toLowerCase().includes(k));
+          const hasImageExt = imageExtensions.test(absoluteUrl);
+          const isOLXApollo = 
+            (absoluteUrl.includes("apollo.olxcdn.com") || 
+             absoluteUrl.includes("olxcdn.com") || 
+             absoluteUrl.includes("akamaized.net") ||
+             absoluteUrl.includes("storia.ro")) && 
+            (absoluteUrl.includes("/files/") || absoluteUrl.includes("/image") || absoluteUrl.includes("/photos/"));
+          const isPubli24Asset = (
+            absoluteUrl.includes("publi24.ro") || 
+            absoluteUrl.includes("pstatic.ro") || 
+            absoluteUrl.includes("pcdnh.ro") || 
+            absoluteUrl.includes("pcdnh0.ro") || 
+            absoluteUrl.includes("publi24cdn.ro") || 
+            absoluteUrl.includes("static.publi24.ro")
+          ) && (absoluteUrl.includes("/small/") || absoluteUrl.includes("/medium/") || absoluteUrl.includes("/large/") || absoluteUrl.includes("/thumb/") || absoluteUrl.includes("/image/"));
+          
+          // Relaxed check for known high-quality imobiliare CDNs
+          const isImobiliareImg = absoluteUrl.toLowerCase().includes("imobiliare.ro") || absoluteUrl.toLowerCase().includes("roamcdn");
+          
+          if ((hasImageExt || isPubli24Asset || isOLXApollo || isImobiliareImg || absoluteUrl.includes("/files/") || absoluteUrl.includes("/image") || absoluteUrl.includes("/photos/")) && !isSocial && !isAd) {
+            let cleanedUrl = absoluteUrl;
+            
+            // Promote imobiliare.ro & roamcdn images
+            if (isImobiliareImg) {
+              const imobiliarePromotions = [
+                { thumb: "_75x75.jpg", high: "_800x600.jpg" },
+                { thumb: "_150x150.jpg", high: "_800x600.jpg" },
+                { thumb: "_160x120.jpg", high: "_800x600.jpg" },
+                { thumb: "_400x300.jpg", high: "_800x600.jpg" },
+                { thumb: "/small/", high: "/large/" },
+                { thumb: "/medium/", high: "/large/" },
+                { thumb: "/thumb/", high: "/large/" }
+              ];
+              imobiliarePromotions.forEach(p => {
+                if (cleanedUrl.includes(p.thumb)) cleanedUrl = cleanedUrl.replace(p.thumb, p.high);
+              });
+              if (cleanedUrl.toLowerCase().includes("roamcdn")) {
+                cleanedUrl = cleanedUrl.replace(/gallery-[a-zA-Z0-9]+-watermark/g, "gallery-full-1200w-watermark");
+              }
+            }
+
+            // General promotion
+            if (cleanedUrl.includes("/small/")) cleanedUrl = cleanedUrl.replace("/small/", "/large/");
+            if (cleanedUrl.includes("/medium/")) cleanedUrl = cleanedUrl.replace("/medium/", "/large/");
+            if (cleanedUrl.includes("/thumb/")) cleanedUrl = cleanedUrl.replace("/thumb/", "/large/");
+
+            // High res for Storia/OLX
+            if (cleanedUrl.includes(";s=")) {
+              cleanedUrl = cleanedUrl.replace(/;s=\d+x\d+/, ";s=1000x700");
+            } else if (isOLXApollo) {
+              if (cleanedUrl.includes("/files/") || cleanedUrl.includes("/image")) {
+                cleanedUrl = cleanedUrl + (cleanedUrl.includes("?") ? "&" : ";") + "s=1000x700";
+              }
+            }
+
+            const lowResKeywords = ["logo", "icon", "avatar", "150x150", "75x75", "100x100"];
+            const isLowRes = lowResKeywords.some(keyword => cleanedUrl.toLowerCase().includes(keyword));
+
+            if (!isLowRes) {
+              images.push(cleanedUrl);
+            }
+          }
+        });
+      });
+
+      // Scan all element attributes for anything that looks like a Publi24 image URL
+      $("*").each((_, el) => {
+        const attribs = (el as any).attribs;
+        if (!attribs) return;
+        
+        Object.keys(attribs).forEach(attrName => {
+          const attrValue = attribs[attrName];
+          const isImageUrl = attrValue && typeof attrValue === 'string' && (
+            attrValue.includes(".jpg") || 
+            attrValue.includes(".jpeg") || 
+            attrValue.includes(".png") || 
+            attrValue.includes(".webp") ||
+            attrValue.includes("image")
+          );
+
+          if (isImageUrl) {
+            let potentialUrl = attrValue.trim().replace(/\\/g, "");
+            
+            // Clean up potentially concatenated URLs from data-srcset or space-separated lists
+            if (potentialUrl.includes(" ")) {
+              potentialUrl = potentialUrl.split(" ")[0];
+            }
+
+            if (potentialUrl.startsWith("//")) potentialUrl = "https:" + potentialUrl;
+            if (potentialUrl.startsWith("/")) {
+              try {
+                const urlObj = new URL(url);
+                potentialUrl = urlObj.origin + potentialUrl;
+              } catch (e) {}
+            }
+
+            if (potentialUrl.startsWith("http")) {
+              let cleaned = potentialUrl;
+              const isPubli24Url = cleaned.includes("publi24") || cleaned.includes("pstatic.ro") || cleaned.includes("pcdnh.ro");
+              
+              if (isPubli24Url) {
+                if (cleaned.includes("/small/")) cleaned = cleaned.replace("/small/", "/large/");
+                if (cleaned.includes("/medium/")) cleaned = cleaned.replace("/medium/", "/large/");
+                if (cleaned.includes("/thumb/")) cleaned = cleaned.replace("/thumb/", "/large/");
+              }
+              
+              // Only push if it's likely a real image and not already present
+              const lowResKeywords = ["logo", "icon", "avatar", "150x150", "75x75", "100x100"];
+              const isLowRes = lowResKeywords.some(keyword => cleaned.toLowerCase().includes(keyword));
+              
+              if (!isLowRes) {
+                images.push(cleaned);
+              }
+            }
+          }
+        });
+      });
+
+      // Scan scripts for hidden image URLs (especially for Publi24/OLX/Storia)
+      $("script").each((_, script) => {
+        const content = $(script).html();
+        if (content) {
+          // Unescape backslashes in script content for better matching
+          const unescapedContent = content.replace(/\\\/|\\/g, (m) => m === "\\/" ? "/" : "");
+          
+          // Special handling for Next.js data
+          if (content.includes("__NEXT_DATA__")) {
+            try {
+              const data = JSON.parse(content);
+              
+              // Specific Storia/OLX path
+              const adData = data?.props?.pageProps?.ad || data?.props?.pageProps?.advert;
+              const adImages = adData?.images || adData?.photos || adData?.gallery;
+              
+              if (Array.isArray(adImages)) {
+                adImages.forEach((img: any) => {
+                  const url = img.url || img.medium || img.large || (typeof img === 'string' ? img : null);
+                  if (url && typeof url === 'string') {
+                    let cleaned = url;
+                    if (cleaned.includes(";s=")) cleaned = cleaned.replace(/;s=\d+x\d+/, ";s=1000x700");
+                    else if ((cleaned.includes("akamaized.net") || cleaned.includes("apollo") || cleaned.includes("storia.ro")) && (cleaned.includes("/files/") || cleaned.includes("/image"))) {
+                      cleaned = cleaned + (cleaned.includes('?') ? '&' : ';') + "s=1000x700";
+                    }
+                    images.push(cleaned);
+                  }
+                });
+              }
+
+              // Recursively find all other potential images
+              const findImages = (obj: any) => {
+                if (!obj) return;
+                if (typeof obj === "string") {
+                  const lower = obj.toLowerCase();
+                  const isPotentialImage = 
+                    lower.startsWith("http") && 
+                    ((lower.includes("apollo") || 
+                      lower.includes("akamaized") || 
+                      lower.includes("olxcdn") ||
+                      lower.includes("storia.ro") ||
+                      lower.includes("roamcdn") ||
+                      lower.includes("publi24")) && (lower.includes("/files/") || lower.includes("/image") || lower.includes("/photos/") || lower.includes("/large/") || lower.includes("/medium/") || lower.includes("prop/imo") || lower.includes("gallery")) ||
+                     imageExtensions.test(lower));
+                  
+                  if (isPotentialImage) {
+                    let cleaned = obj;
+                    if (cleaned.includes(";s=")) cleaned = cleaned.replace(/;s=\d+x\d+/, ";s=1000x700");
+                    else if ((cleaned.includes("akamaized.net") || cleaned.includes("apollo")) && (cleaned.includes("/files/") || cleaned.includes("/image"))) {
+                      cleaned = cleaned + (cleaned.includes('?') ? '&' : ';') + "s=1000x700";
+                    }
+                    if (cleaned.includes("/small/")) cleaned = cleaned.replace("/small/", "/large/");
+                    if (cleaned.includes("/medium/")) cleaned = cleaned.replace("/medium/", "/large/");
+                    if (cleaned.toLowerCase().includes("roamcdn")) {
+                      cleaned = cleaned.replace(/gallery-[a-zA-Z0-9]+-watermark/g, "gallery-full-1200w-watermark");
+                    }
+                    images.push(cleaned);
+                  }
+                  return;
+                }
+                if (Array.isArray(obj)) {
+                  obj.forEach(findImages);
+                  return;
+                }
+                if (typeof obj === "object") {
+                  Object.values(obj).forEach(findImages);
+                }
+              };
+              findImages(data);
+            } catch (e) {
+              // Silently fail if JSON parse fails
+            }
+          }
+
+          // Look for URLs that look like property images, including those without specific extensions but on apollo/akamaized
+          // Using a more robust regex that accounts for potential escaping and multiple formats
+          const matches = unescapedContent.match(/https?:\/\/[^"'\s\)]+(?:\.(?:jpg|jpeg|png|webp|avif)|(?:\/image|v1\/files|\/large\/|\/medium\/)[^"'\s\)]*)(?:[^"'\s\)]*)?/gi);
+          if (matches) {
+            matches.forEach(rawUrl => {
+              const absoluteUrl = rawUrl;
+              const isSocial = socialMediaBlocked.some(s => absoluteUrl.toLowerCase().includes(s));
+              const isAd = adKeywords.some(k => absoluteUrl.toLowerCase().includes(k));
+              const isKnownDomain = 
+                (absoluteUrl.includes("publi24") || 
+                 absoluteUrl.includes("olxcdn") || 
+                 absoluteUrl.includes("storia") || 
+                 absoluteUrl.includes("imobiliare.ro") ||
+                 absoluteUrl.includes("roamcdn") ||
+                 absoluteUrl.includes("akamaized.net") ||
+                 absoluteUrl.includes("pstatic") ||
+                 absoluteUrl.includes("pcdnh") ||
+                 absoluteUrl.includes("apollo")) && (absoluteUrl.includes("/files/") || absoluteUrl.includes("/image") || absoluteUrl.includes("/photos/") || absoluteUrl.includes("/large/") || absoluteUrl.includes("/medium/") || absoluteUrl.includes("/galerie/") || absoluteUrl.includes("static") || absoluteUrl.includes("prop/imo") || absoluteUrl.includes("gallery"));
+              
+              if (isKnownDomain && !isSocial && !isAd) {
+                let cleanedUrl = absoluteUrl;
+                
+                // Promote imobiliare.ro & roamcdn images
+                if (cleanedUrl.toLowerCase().includes("imobiliare.ro") || cleanedUrl.toLowerCase().includes("roamcdn")) {
+                  const imobiliarePromotions = [
+                    { thumb: "_75x75.jpg", high: "_800x600.jpg" },
+                    { thumb: "_150x150.jpg", high: "_800x600.jpg" },
+                    { thumb: "_160x120.jpg", high: "_800x600.jpg" },
+                    { thumb: "_400x300.jpg", high: "_800x600.jpg" },
+                    { thumb: "/small/", high: "/large/" },
+                    { thumb: "/medium/", high: "/large/" },
+                    { thumb: "/thumb/", high: "/large/" }
+                  ];
+                  imobiliarePromotions.forEach(p => {
+                    if (cleanedUrl.includes(p.thumb)) cleanedUrl = cleanedUrl.replace(p.thumb, p.high);
+                  });
+                  if (cleanedUrl.toLowerCase().includes("roamcdn")) {
+                    cleanedUrl = cleanedUrl.replace(/gallery-[a-zA-Z0-9]+-watermark/g, "gallery-full-1200w-watermark");
+                  }
+                }
+                
+                if (cleanedUrl.includes("/small/")) cleanedUrl = cleanedUrl.replace("/small/", "/large/");
+                if (cleanedUrl.includes("/medium/")) cleanedUrl = cleanedUrl.replace("/medium/", "/large/");
+                if (cleanedUrl.includes("/thumb/")) cleanedUrl = cleanedUrl.replace("/thumb/", "/large/");
+                
+                // High res for Storia/OLX
+                if (cleanedUrl.includes(";s=")) {
+                  cleanedUrl = cleanedUrl.replace(/;s=\d+x\d+/, ";s=1000x700");
+                } else if (cleanedUrl.includes("akamaized.net") || cleanedUrl.includes("apollo") || cleanedUrl.includes("storia.ro")) {
+                   if ((cleanedUrl.includes("/files/") || cleanedUrl.includes("/image")) && !cleanedUrl.includes(";s=")) {
+                     cleanedUrl = cleanedUrl + (cleanedUrl.includes('?') ? '&' : ';') + "s=1000x700";
+                   }
+                }
+                
+                images.push(cleanedUrl);
+              }
+            });
+          }
+        }
+      });
+
+      // Remove duplicates and limit
+      const deduplicateImages = (urls: string[]) => {
+        const map = new Map<string, string>();
+        
+        const isLogoOrTextUrl = (urlStr: string): boolean => {
+          const lower = urlStr.toLowerCase();
+          // Exempt known real estate property photo CDNs from watermark/promo keyword filtering
+          if (
+            lower.includes("roamcdn.net") || 
+            lower.includes("apollo.olxcdn.com") || 
+            lower.includes("olxcdn.com") || 
+            lower.includes("akamaized.net") ||
+            lower.includes("pstatic.ro") ||
+            lower.includes("pcdnh")
+          ) {
+            return false;
+          }
+          const badKeywords = [
+            "logo", "watermark", "banner", "avatar", "placeholder", "icon",
+            "schita", "plan", "schiță", "text", "sigla", "siglă", "promo",
+            "grafic", "desen", "document", "pdf", ".gif", "brand", "afis", "afiș",
+            "anunt", "anunț", "titlu", "title", "splash", "favicon"
+          ];
+          return badKeywords.some(keyword => lower.includes(keyword));
+        };
+
+        const getCanonical = (u: string) => {
+          let base = u.split(/[?;]/)[0];
+          
+          // Match roamcdn unique file paths to deduplicate thumbnails and high-res main pictures
+          const roamMatch = base.match(/(prod-property-core-backend-media-imo\/\d+\/[a-f0-9-]+\.[a-z]+)/i);
+          if (roamMatch) {
+            return roamMatch[1];
+          }
+          
+          // OLX/Storia pattern: /v1/files/[ID]/
+          const olxMatch = base.match(/\/v1\/files\/([A-Za-z0-9]+)\//);
+          if (olxMatch) return olxMatch[1];
+          // Imobiliare.ro pattern: strip size suffix
+          base = base.replace(/_\d+x\d+(?=\.jpg)/i, "");
+          // General size folder removal
+          base = base.replace(/\/(small|medium|thumb|large|galerie)\//i, "/");
+          return base;
+        };
+
+        const getScore = (u: string) => {
+          const lower = u.toLowerCase();
+          let score = 0;
+          if (lower.includes("1200w") || lower.includes("1600w")) score += 200;
+          if (lower.includes("1000x700") || lower.includes("1280x") || lower.includes("900w")) score += 100;
+          if (lower.includes("800x600")) score += 50;
+          if (lower.includes("/large/") || lower.includes("/galerie/")) score += 40;
+          if (lower.includes("/medium/")) score += 20;
+          if (lower.includes("/small/") || lower.includes("/thumb/") || lower.includes("140w")) score -= 20;
+          if (lower.includes("logo") || lower.includes("icon")) score -= 1000;
+          return score;
+        };
+
+        urls.forEach(u => {
+          if (isLogoOrTextUrl(u)) {
+            return; // completely filter out logo and text images
+          }
+          const key = getCanonical(u);
+          const existing = map.get(key);
+          if (!existing || getScore(u) > getScore(existing)) {
+            map.set(key, u);
+          }
+        });
+
+        return Array.from(map.values());
+      };
+
+      const uniqueImages = deduplicateImages(images).slice(0, 50);
+      console.log(`Found ${uniqueImages.length} unique images for ${url}`);
+
+      // Extract seller name explicitly if possible (OLX/Storia patterns)
+      let sellerName = "";
+      
+      const sellerSelectors = [
+        '[data-testid="user-profile-link"] h4',
+        '[data-testid="user-info"] h4',
+        'div[class*="User-profile"] h4',
+        '[data-testid*="user"] h4',
+        ".css-1wv6n9s", // Common OLX user class
+        '[data-testid="seller-card-name"]',
+        '[data-testid="agent-name"]',
+        ".css-1l5shf0" // Common Storia user class
+      ];
+
+      for (const selector of sellerSelectors) {
+        const found = $(selector).first().text().trim();
+        if (found) {
+          sellerName = found;
+          break;
+        }
+      }
+
+      // Final deduplication check for "NameName" patterns
+      if (sellerName) {
+        const half = Math.floor(sellerName.length / 2);
+        const firstHalf = sellerName.substring(0, half);
+        const secondHalf = sellerName.substring(half);
+        if (firstHalf === secondHalf && half > 1) {
+          sellerName = firstHalf;
+        }
+      }
+
+      // Extract Phone Number explicitly if possible (OLX/Storia patterns or Regex)
+      let sellerPhone = "";
+      const isOLXOrStoria = url.includes("olx.ro") || url.includes("storia.ro");
+      
+      let numericId: any = null;
+      if (html.includes("__NEXT_DATA__")) {
+        try {
+          const $nextData = $("script#__NEXT_DATA__");
+          if ($nextData.length) {
+            const nextJson = JSON.parse($nextData.html() || "{}");
+            const ad = nextJson?.props?.pageProps?.ad || nextJson?.props?.pageProps?.advert;
+            if (ad && ad.id) {
+              numericId = ad.id;
+            }
+            if (ad?.contact?.phone) {
+              sellerPhone = ad.contact.phone;
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (isOLXOrStoria && numericId && !sellerPhone) {
+        try {
+          console.log(`Fetching dynamic contact phone number for OLX/Storia ID: ${numericId}`);
+          const phonesUrl = url.includes("storia.ro")
+            ? `https://www.storia.ro/api/v1/offers/${numericId}/phones/`
+            : `https://www.olx.ro/api/v1/offers/${numericId}/phones/`;
+
+          const phoneRes = await axios.get(phonesUrl, {
+            headers: {
+              "User-Agent": userAgents[i % userAgents.length],
+              "Referer": url,
+              "Accept": "application/json"
+            },
+            timeout: 5000
+          });
+
+          if (phoneRes.status === 200 && phoneRes.data) {
+            const dataVal = phoneRes.data.data;
+            if (dataVal && Array.isArray(dataVal.phones) && dataVal.phones.length > 0) {
+              sellerPhone = dataVal.phones[0];
+            } else if (phoneRes.data.value) {
+              sellerPhone = phoneRes.data.value;
+            } else if (Array.isArray(phoneRes.data) && phoneRes.data.length > 0) {
+              sellerPhone = phoneRes.data[0];
+            }
+          }
+        } catch (e: any) {
+          console.log(`Fallback OLX/Storia phone lookup failed: ${e.message}`);
+          try {
+            const limitedPhonesUrl = url.includes("storia.ro")
+              ? `https://www.storia.ro/api/v1/offers/${numericId}/limited-phones/`
+              : `https://www.olx.ro/api/v1/offers/${numericId}/limited-phones/`;
+            const phoneRes = await axios.get(limitedPhonesUrl, {
+              headers: { "User-Agent": userAgents[i % userAgents.length], "Referer": url },
+              timeout: 4000
+            });
+            if (phoneRes.status === 200 && phoneRes.data) {
+              const dataVal = phoneRes.data.data;
+              if (dataVal && Array.isArray(dataVal.phones) && dataVal.phones.length > 0) {
+                sellerPhone = dataVal.phones[0];
+              } else if (phoneRes.data.value) {
+                sellerPhone = phoneRes.data.value;
+              }
+            }
+          } catch (err: any) {
+            console.log(`limited-phones endpoint lookup failed: ${err.message}`);
+          }
+        }
+      }
+
+      // Convert HTML to clean text for Gemini
+      const text = convert(html, {
+        wordwrap: 130,
+        selectors: [
+          { selector: "a", options: { ignoreHref: true } },
+          { selector: "img", format: "skip" },
+          { selector: "nav", format: "skip" },
+          { selector: "footer", format: "skip" },
+          { selector: "script", format: "skip" },
+          { selector: "style", format: "skip" },
+        ],
+      });
+
+      // Extract custom script details for exact specification metadata (JSON-LD, NEXT_DATA or window.__INITIAL_STATE__)
+      const scriptTexts: string[] = [];
+      $("script[type='application/ld+json']").each((_, el) => {
+        const htmlVal = $(el).html();
+        if (htmlVal) scriptTexts.push(htmlVal.trim());
+      });
+      $("script#__NEXT_DATA__").each((_, el) => {
+        const htmlVal = $(el).html();
+        if (htmlVal) scriptTexts.push(htmlVal.trim());
+      });
+      $("script").each((_, el) => {
+        const htmlVal = $(el).html() || "";
+        if (htmlVal.includes("__INITIAL_STATE__") || htmlVal.includes("INITIAL_STATE") || htmlVal.includes("window.__APP_STATE__")) {
+          // Keep a safe chunk of state containing metadata
+          scriptTexts.push(htmlVal.trim().substring(0, 20000));
+        }
+      });
+
+      // Robust phone number extraction (from HTML attributes, buttons, JSON keys or regex matches)
+      if (!sellerPhone || sellerPhone.includes("...") || sellerPhone.length < 10) {
+        const phoneCandidates: string[] = [];
+        
+        // Match specific JSON structures or dataset attributes
+        const jsonPhoneKeys = [
+          /"telefon"\s*:\s*"([^"]+)"/gi,
+          /"phone"\s*:\s*"([^"]+)"/gi,
+          /"phoneNumber"\s*:\s*"([^"]+)"/gi,
+          /"contact_phone"\s*:\s*"([^"]+)"/gi,
+          /\\"[tT]elefon\\"\s*:\s*\\"[^"\d]*(\d+)[^"\d]*\\"/g,
+          /\\"[pP]hone\\"\s*:\s*\\"[^"\d]*(\d+)[^"\d]*\\"/g,
+          /data-telefon="([^"]+)"/gi,
+          /data-phone="([^"]+)"/gi,
+          /tel:([^"]+)/gi
+        ];
+
+        for (const regex of jsonPhoneKeys) {
+          let match;
+          while ((match = regex.exec(html)) !== null) {
+            const rawVal = match[1];
+            const cleaned = rawVal.replace(/[^\d+]/g, "").trim();
+            if ((cleaned.startsWith("07") && cleaned.length === 10) || 
+                (cleaned.startsWith("407") && cleaned.length === 12) || 
+                (cleaned.startsWith("+407") && cleaned.length === 13)) {
+              phoneCandidates.push(cleaned);
+            }
+          }
+        }
+
+        // Match common elements
+        $("[data-telefon], [data-phone], [data-contacts], [data-contact], .phone, .telefon, a[href^='tel:']").each((_, el) => {
+          const $el = $(el);
+          const tel = $el.attr("data-telefon") || $el.attr("data-phone") || $el.attr("data-contact") || $el.text();
+          const href = $el.attr("href");
+          if (href && href.startsWith("tel:")) {
+            phoneCandidates.push(href.replace("tel:", "").trim());
+          }
+          if (tel) {
+            phoneCandidates.push(tel.trim());
+          }
+        });
+
+        // Regex lookup in raw text and HTML body
+        const romanianPhoneRegex = /(?:\+40|0)\s?7\d{2}[\s.-]?\d{3}[\s.-]?\d{3}\b/g;
+        const phoneMatches = (html.match(romanianPhoneRegex) || []).concat(text.match(romanianPhoneRegex) || []);
+        if (phoneMatches) {
+          for (const rawMatch of phoneMatches) {
+            const cleaned = rawMatch.replace(/[^\d+]/g, "").trim();
+            if (cleaned.startsWith("07") && cleaned.length === 10) {
+              phoneCandidates.push(cleaned);
+            } else if (cleaned.startsWith("407") && cleaned.length === 12) {
+              phoneCandidates.push("0" + cleaned.substring(2));
+            } else if (cleaned.startsWith("+407") && cleaned.length === 13) {
+              phoneCandidates.push("0" + cleaned.substring(3));
+            }
+          }
+        }
+
+        if (phoneCandidates.length > 0) {
+          const normalized = phoneCandidates.map(p => {
+            const cleanStr = p.replace(/[^\d+]/g, "").trim();
+            if (cleanStr.startsWith("+40")) return "0" + cleanStr.substring(3);
+            if (cleanStr.startsWith("40")) return "0" + cleanStr.substring(2);
+            return cleanStr;
+          }).filter(p => p.startsWith("07") && p.length === 10);
+          
+          const uniquePhones = [...new Set(normalized)];
+          if (uniquePhones.length > 0) {
+            sellerPhone = uniquePhones[0];
+          }
+        }
+      }
+
+      // Heuristic parsing for surface information on Romanian real estate portals (e.g. imobiliare.ro, storia.ro, etc.)
+      const parsedSpecs: string[] = [];
+      const surfaceMatches = [
+        { label: "Suprafata utila", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*util[a\u0103]?|s\s*util[a\u0103]?|utila)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
+        { label: "Suprafata construita", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*construit[a\u0103]?|s\s*construit[a\u0103]?|construita)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
+        { label: "Suprafata utila totala", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*util[a\u0103]?\s*total[a\u0103]?|s\s*total[a\u0103]?|utila\s*totala)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
+        { label: "Suprafata teren", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*teren|teren)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
+        { label: "Numar camere", regex: /(?:num[a\u0103]r\s*camere|camere|nr\s*camere)\s*[:\-–]?\s*(\d+)/gi },
+        { label: "Etaj", regex: /(?:etaj|etajul)\s*[:\-–]?\s*(parter|etaj\s*\d+|\d+\/\d+|\d+)/gi }
+      ];
+
+      for (const item of surfaceMatches) {
+        let match;
+        item.regex.lastIndex = 0;
+        while ((match = item.regex.exec(text)) !== null) {
+          parsedSpecs.push(`${item.label}: ${match[0].trim()}`);
+          if (parsedSpecs.length > 15) break;
+        }
+        item.regex.lastIndex = 0;
+        while ((match = item.regex.exec(html)) !== null) {
+          parsedSpecs.push(`[HTML Raw Specs] ${item.label}: ${match[0].trim()}`);
+          if (parsedSpecs.length > 30) break;
+        }
+      }
+
+      // Also look for key parameters inside scripts/HTML for imobiliare/storia/etc.
+      const rawJsonMatches = html.match(/"(?:m2|mp|surface|surface_area|suprafata_utila|suprafataUtila|suprafata|size_utila|size|area|utila|construita)"\s*:\s*["]?(\d+(?:[.,]\d+)?)["]?/gi) || [];
+      rawJsonMatches.slice(0, 40).forEach(keyMatch => {
+        parsedSpecs.push(`[JSON Property Metric]: ${keyMatch.trim()}`);
+      });
+
+      // Prepend metadata and Javascript states to guide Gemini in exact surface and metric extraction
+      let enrichedText = text;
+      if (parsedSpecs.length > 0) {
+        enrichedText = "--- DATE TEHNICE EXZACT PARSATE (MANDATORY METERS) ---\n" + 
+                     parsedSpecs.join("\n") + 
+                     "\n--- SFARSIT DATE TEHNICE ---\n\n" + 
+                     enrichedText;
+      }
+
+      if (scriptTexts.length > 0) {
+        enrichedText = "--- METADATE SI STATE SCRIPT (DATE REALE SI EXACTE DE PE PAGINA DETECTOR METRICI) ---\n" + 
+                     scriptTexts.join("\n\n") + 
+                     "\n--- SFARSIT METADATE SELECTATE ---\n\n" + 
+                     enrichedText;
+      }
+      
+      if (sellerName) {
+        enrichedText = `SELLER_NAME: ${sellerName}\n\n` + enrichedText;
+      }
+      if (sellerPhone) {
+        enrichedText = `SELLER_PHONE: ${sellerPhone}\n\n` + enrichedText;
+      }
+
+      res.json({
+        title,
+        text: enrichedText,
+        images: uniqueImages
+      });
+
+      // Background pre-warming (asynchronous and non-blocking)
+      setTimeout(() => {
+        console.log(`[Cache Pre-warming] Starting background watermark cleaning for ${uniqueImages.length} images...`);
+        // Process top 15 images to avoid overwhelming Gemini API rate limits
+        const imagesToPrewarm = uniqueImages.slice(0, 15);
+        
+        const prewarmImage = async (imgUrl: string) => {
+          try {
+            if (imageCleanCache.has(imgUrl)) return;
+            
+            console.log(`[Cache Pre-warming] Pre-warming: ${imgUrl}`);
+            const response = await axios.get(imgUrl, {
+              responseType: "arraybuffer",
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+                "Referer": "https://www.google.com/"
+              },
+              timeout: 15000,
+              validateStatus: (status) => status < 600
+            });
+            
+            if (response.status >= 400) return;
+            
+            const rawContentType = response.headers["content-type"];
+            const contentType = Array.isArray(rawContentType) 
+              ? rawContentType[0] 
+              : (typeof rawContentType === "string" ? rawContentType : "image/jpeg");
+              
+            if (!contentType.startsWith("image/") || contentType.includes("svg")) return;
+            
+            const cleanedBuffer = await cleanImageWatermarks(response.data, contentType, imgUrl);
+            addToImageCache(imgUrl, {
+              mimeType: contentType,
+              data: cleanedBuffer
+            });
+            console.log(`[Cache Pre-warming] Successfully pre-warmed: ${imgUrl}`);
+          } catch (err: any) {
+            console.error(`[Cache Pre-warming] Failed to pre-warm ${imgUrl}:`, err.message);
+          }
+        };
+        
+        // Process them in sequence to avoid rate limits
+        (async () => {
+          for (const imgUrl of imagesToPrewarm) {
+            await prewarmImage(imgUrl);
+          }
+        })();
+      }, 100);
+
+      return; // Success!
+    } catch (error: any) {
+      console.error(`Attempt ${i+1} failed:`, error.message);
+      lastError = error;
+    }
+  }
+
+  res.status(500).json({ 
+    error: `Failed to fetch URL after retries: ${lastError?.message || "Unknown error"}`,
+    details: lastError?.response?.data && typeof lastError.response.data === 'string' ? lastError.response.data.substring(0, 500) : null
+  });
+});
+
+  // Basic crawl for initial lead entry
+  app.post("/api/crawl-basic", async (req, res, next) => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: "URL is required" });
+
+    const userAgents = [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
+    ];
+
+    let lastError: any = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const response = await axios.get(url, {
+          headers: { 
+            "User-Agent": userAgents[i % userAgents.length],
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "ro-RO,ro;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Connection": "keep-alive"
+          },
+          timeout: 10000,
+          validateStatus: (status) => status < 600
+        });
+
+        if (response.status === 403 || response.status === 503) {
+          lastError = new Error(`Site returned ${response.status}`);
+          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+          continue;
+        }
+
+        if (response.status >= 400) {
+           throw new Error(`HTTP Error ${response.status}`);
+        }
+
+        const html = response.data;
+        const $ = cheerio.load(html);
+        const title = $("title").text() || "";
+        const text = convert(html, {
+          wordwrap: 130,
+          selectors: [
+            { selector: "a", options: { ignoreHref: true } },
+            { selector: "img", format: "skip" },
+            { selector: "nav", format: "skip" },
+            { selector: "footer", format: "skip" },
+            { selector: "script", format: "skip" },
+            { selector: "style", format: "skip" },
+          ],
+        });
+
+        res.json({ title, text: text.substring(0, 10000) });
+        return;
+      } catch (error: any) {
+        lastError = error;
+      }
+    }
+
+    res.status(500).json({ error: `Basic crawl failed: ${lastError?.message}` });
+  });
+ 
+  // API Route to proxy images for Gemini (bypasses CORS) and cleans watermarks
+  app.get("/api/proxy-image", async (req, res) => {
+    const { url } = req.query;
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ error: "Missing URL parameter" });
+    }
+
+    let cleanUrl = url.trim();
+    if (cleanUrl.startsWith("https://") && cleanUrl.includes(":443/")) {
+      cleanUrl = cleanUrl.replace(":443/", "/");
+    }
+
+    // Serve from cache if available (super fast!)
+    if (imageCleanCache.has(cleanUrl)) {
+      console.log(`[Proxy Image] Serving from cache: ${cleanUrl.substring(0, 100)}...`);
+      const cached = imageCleanCache.get(cleanUrl)!;
+      if (req.query.json === "true") {
+        const base64 = cached.data.toString("base64");
+        return res.json({ base64, contentType: cached.mimeType });
+      } else {
+        res.setHeader("Content-Type", cached.mimeType);
+        res.setHeader("Cache-Control", "public, max-age=3600");
+        return res.send(cached.data);
+      }
+    }
+
+    const userAgents = [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
+    ];
+
+    let lastError: any = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        // Pre-check for social media blocks
+        const lowerUrl = cleanUrl.toLowerCase();
+        const socialMediaBlocked = ["facebook.com", "linkedin.com", "twitter.com", "instagram.com", "youtube.com"];
+        if (socialMediaBlocked.some(s => lowerUrl.includes(s))) {
+          return res.status(400).json({ error: "Social media links are not images" });
+        }
+
+        const blocklist = [
+          "splash", "manifest", "android-icon", "apple-icon", 
+          "apple-touch-icon", "favicon", "site-logo", "loading", 
+          "loader", "default-image", "placeholder"
+        ];
+        if (blocklist.some(b => lowerUrl.includes(b))) {
+          return res.status(400).json({ error: "Skipped application assets / placeholders" });
+        }
+
+        console.log(`Proxying image (attempt ${i+1}): ${cleanUrl}`);
+        
+        let referer = "https://www.google.com/";
+        try {
+          const urlObj = new URL(cleanUrl);
+          referer = `${urlObj.protocol}//${urlObj.hostname}/`;
+        } catch (e) {
+          // Fallback
+        }
+
+        const response = await axios.get(cleanUrl, {
+          responseType: "arraybuffer",
+          headers: {
+            "User-Agent": userAgents[i % userAgents.length],
+            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Referer": referer,
+            "Accept-Language": "ro-RO,ro;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Connection": "keep-alive",
+            "Sec-Ch-Ua": '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "image",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Site": "cross-site"
+          },
+          timeout: 15000,
+          validateStatus: (status) => status < 600
+        });
+
+        if (response.status === 403 || response.status === 503) {
+          console.log(`Proxy site returned ${response.status}, retrying...`);
+          lastError = new Error(`Site returned ${response.status}`);
+          await new Promise(r => setTimeout(r, 1000));
+          continue;
+        }
+
+        if (response.status >= 400) {
+           throw new Error(`HTTP Error ${response.status}`);
+        }
+
+        const rawContentType = response.headers["content-type"];
+        const contentType = Array.isArray(rawContentType) 
+          ? rawContentType[0] 
+          : (typeof rawContentType === "string" ? rawContentType : "image/jpeg");
+        
+        console.log(`Proxy response content-type: ${contentType}`);
+
+        // Filter out non-images (like HTML being returned from a social page redirect)
+        if (!contentType.startsWith("image/")) {
+           lastError = new Error(`URL returned ${contentType}, which is not an image type.`);
+           continue; 
+        }
+
+        // Filter out SVGs as Gemini doesn't support them
+        if (contentType.includes("svg")) {
+          return res.status(400).json({ error: "Gemini does not support SVG images" });
+        }
+
+        let finalData = response.data;
+        if (req.query.noclean !== "true") {
+          // Clean watermark
+          finalData = await cleanImageWatermarks(response.data, contentType, cleanUrl);
+          addToImageCache(cleanUrl, { mimeType: contentType, data: finalData });
+        }
+
+        const base64 = finalData.toString("base64");
+        // Check if client wants raw binary or json
+        if (req.query.json === "true") {
+          res.json({ base64, contentType });
+        } else {
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Cache-Control", "public, max-age=3600");
+          res.send(finalData);
+        }
+        return;
+      } catch (error: any) {
+        lastError = error;
+      }
+    }
+
+    res.status(500).json({ error: `Failed to fetch image after retries: ${lastError?.message}` });
+  });
+
+  // Prevent API fall-through to Vite/static fallback
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+  });
+
+  // Global error handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("Global crash handler:", err);
+    res.status(500).json({ error: "Internal server error", details: err.message });
+  });
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  // Setup WebSocket connections for AI phone call module
+  setupWebSocket(server);
+
+  // Initialize offline / background Web Push notification listener for upcoming viewings
+  setupBackgroundNotifications();
+}
+
+startServer();

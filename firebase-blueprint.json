@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Real Estate Lead",
+      "description": "A potential property lead for crawling and processing",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "The listing URL" },
+        "title": { "type": "string", "description": "Property title" },
+        "zone": { "type": "string", "description": "Property location zone" },
+        "price": { "type": "string", "description": "Property price" },
+        "ownerName": { "type": "string", "description": "Name of the owner/contact" },
+        "ownerPhone": { "type": "string", "description": "Phone number of the owner/contact" },
+        "transactionType": { "type": "string", "enum": ["Vânzare", "Închiriere"] },
+        "categoria": { "type": "string", "enum": ["Apartamente", "Case / Vile", "Terenuri", "Spatii birouri", "Spatii comerciale", "Spatii industriale", "Spatii depozitare", "Hale", "Alte tipuri"] },
+        "status": { "type": "string", "enum": ["Lead-uri", "Prospectare", "Publicare", "Cerere", "Vizionare", "Semnare", "Arhiva", "Sterse"] },
+        "extractedData": { "type": "object", "description": "Full Gemini extraction result" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastMovedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["url", "status", "createdAt", "updatedAt"]
+    },
+    "Contact": {
+      "title": "Property Contact",
+      "description": "An owner, renter, or buyer associated with a property",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "type": { "type": "string", "enum": ["Owner", "Renter", "Buyer", "Agent"] },
+        "phone": { "type": "string" },
+        "propertyId": { "type": "string", "description": "Manual text ID of the associated property" },
+        "commissionValue": { "type": "string", "description": "Optional commission details" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["firstName", "lastName", "type", "phone", "propertyId", "createdAt", "updatedAt"]
+    },
+    "Viewing": {
+      "title": "Property Viewing",
+      "description": "A scheduled meeting between an agent, owner, and potential client",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "contactId": { "type": "string" },
+        "contactName": { "type": "string" },
+        "agentId": { "type": "string" },
+        "agentName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "hour": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "contactId", "contactName", "date", "hour", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "leads": {
+      "schema": { "$ref": "Lead" },
+      "description": "Collection of real estate leads at various stages"
+    },
+    "contacts": {
+      "schema": { "$ref": "Contact" },
+      "description": "Collection of property contacts (Owners, Renters, Buyers)"
+    },
+    "viewings": {
+      "schema": { "$ref": "Viewing" },
+      "description": "Collection of scheduled property viewings"
+    }
+  }
+}
