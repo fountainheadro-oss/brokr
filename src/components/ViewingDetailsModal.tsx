@@ -298,11 +298,11 @@ export const ViewingDetailsModal: React.FC<ViewingDetailsModalProps> = ({ isOpen
                 {(agent || viewing.agentName) && (
                   <div className="bg-white rounded-[16px] border border-gray-100 p-5 shadow-sm md:col-span-2">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-500">
+                      <div className="w-10 h-10 rounded-full bg-[#BE9662]/10 flex items-center justify-center text-[#BE9662]">
                         <User size={20} />
                       </div>
                       <div>
-                        <p className="text-[11px] font-black text-purple-400 uppercase tracking-widest">Agent Asistent (Coleg)</p>
+                        <p className="text-[11px] font-black text-[#BE9662] uppercase tracking-widest">Agent Asistent (Coleg)</p>
                         <h4 className="text-[16px] font-black text-gray-900">{agent ? `${agent.firstName} ${agent.lastName}` : viewing.agentName}</h4>
                       </div>
                     </div>

@@ -33,7 +33,7 @@ export const AICallButtons: React.FC = () => {
 
   const getNotesButtonClass = () => {
     if (status === "connected" || status === "calling") {
-      return "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200 animate-pulse";
+      return "bg-[#BE9662]/20 text-[#051D35] hover:bg-[#BE9662]/30 border border-[#BE9662]/40 animate-pulse";
     }
     return "bg-white hover:bg-gray-50 text-gray-700 border border-gray-100 shadow-sm";
   };

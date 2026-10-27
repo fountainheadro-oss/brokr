@@ -29,8 +29,8 @@ export const ANIMATION_VARIANTS = {
 } as const;
 
 export const COLORS = {
-  primary: "#0a0f1d",
-  accent: "#ef4444",
-  accentLight: "#f87171",
+  primary: "#051D35",
+  accent: "#BE9662",
+  accentLight: "#d4b486",
   textSecondary: "#6a7282",
 };

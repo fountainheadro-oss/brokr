@@ -133,7 +133,7 @@ export const FormCheckbox = ({ label, checked, onChange }: { label: string, chec
         
         <div className={`w-3.5 h-3.5 rounded border transition-all duration-150 flex items-center justify-center ${
           checked 
-          ? 'bg-gray-900 border-gray-900' 
+          ? 'bg-[#051D35] border-[#051D35]' 
           : 'bg-white border-gray-300 group-hover:border-gray-400'
         }`}>
           <AnimatePresence>
@@ -171,7 +171,7 @@ export const FormRadio = ({ label, checked, onChange }: { label: string, checked
 
         <div className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 flex items-center justify-center ${
           checked 
-          ? 'border-gray-900' 
+          ? 'border-[#051D35]' 
           : 'bg-white border-gray-300 group-hover:border-gray-400'
         }`}>
           <AnimatePresence>
@@ -181,7 +181,7 @@ export const FormRadio = ({ label, checked, onChange }: { label: string, checked
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
                 transition={{ duration: 0.1, ease: "easeOut" }}
-                className="w-1.5 h-1.5 bg-gray-900 rounded-full"
+                className="w-1.5 h-1.5 bg-[#051D35] rounded-full"
               />
             )}
           </AnimatePresence>
@@ -215,7 +215,7 @@ export const FormRadioBar = ({ options, activeValue: initialActive, onChange }: 
             onClick={() => handleSelect(opt)}
             className={`px-3 h-8 text-[12px] font-medium rounded-md border transition-all flex-1 min-w-[90px] ${
               isActive 
-                ? 'bg-gray-900 border-gray-900 text-white shadow-xs' 
+                ? 'bg-[#051D35] border-[#051D35] text-white shadow-xs' 
                 : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'
             }`}
           >

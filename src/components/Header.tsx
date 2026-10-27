@@ -1,29 +1,70 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Plus, Bell, UserPlus, Calendar, ChevronDown, Building2, ClipboardList, Search, X, User } from "lucide-react";
+import { 
+  Plus, 
+  Bell, 
+  Calendar, 
+  ChevronDown, 
+  Building2, 
+  ClipboardList, 
+  Search, 
+  X, 
+  Users, 
+  UserCheck, 
+  Inbox, 
+  FileText, 
+  Compass, 
+  UserPlus 
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { leadsService, Lead } from "../services/leadsService";
 import { contactsService, Contact } from "../services/contactsService";
+import { personalService, PersonalMember } from "../services/personalService";
+import { documentService, DocumentItem } from "../services/documentService";
+import { activityService, Activity } from "../services/activityService";
+import { tourService, Tour } from "../services/tourService";
 import { AICallModal } from "./AICall";
 
 interface HeaderProps {
   onAddClick: () => void;
-  onAddContactClick?: () => void;
+  onAddLeadClick?: () => void;
   onAddCerereClick?: () => void;
+  onAddContactClick?: () => void;
+  onAddClientClick?: () => void;
+  onAddPersonalClick?: () => void;
+  onAddStaffClick?: () => void;
+  onAddDocumentClick?: () => void;
+  onAddTourClick?: () => void;
+  onAddActivityClick?: () => void;
   onNotificationsClick: () => void;
   onExtractionRulesClick?: () => void;
   onSelectLead?: (lead: Lead) => void;
   onSelectContact?: (contact: Contact) => void;
+  onSelectPersonal?: (member: PersonalMember) => void;
+  onSelectDocument?: (doc: DocumentItem) => void;
+  onSelectTour?: (tour: Tour) => void;
+  onSelectActivity?: (activity: Activity) => void;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
   onAddClick, 
-  onAddContactClick, 
+  onAddLeadClick,
   onAddCerereClick,
+  onAddContactClick,
+  onAddClientClick,
+  onAddPersonalClick,
+  onAddStaffClick,
+  onAddDocumentClick,
+  onAddTourClick,
+  onAddActivityClick,
   onNotificationsClick,
   onSelectLead,
   onSelectContact,
+  onSelectPersonal,
+  onSelectDocument,
+  onSelectTour,
+  onSelectActivity,
   searchQuery = "",
   onSearchChange
 }) => {
@@ -41,18 +82,24 @@ export const Header: React.FC<HeaderProps> = ({
 
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
+  const [allPersonal, setAllPersonal] = useState<PersonalMember[]>([]);
+  const [allDocuments, setAllDocuments] = useState<DocumentItem[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
 
-  // Subscribe to live data for the search engine
+  // Subscribe to live data for the search engine across all entity types
   useEffect(() => {
-    const unsubLeads = leadsService.subscribeToLeads((leads) => {
-      setAllLeads(leads);
-    });
-    const unsubContacts = contactsService.subscribeToContacts((contacts) => {
-      setAllContacts(contacts);
-    });
+    const unsubLeads = leadsService.subscribeToLeads((leads) => setAllLeads(leads));
+    const unsubContacts = contactsService.subscribeToContacts((contacts) => setAllContacts(contacts));
+    const unsubPersonal = personalService.subscribeToPersonal((members) => setAllPersonal(members));
+    const unsubDocs = documentService.subscribeToDocuments((docs) => setAllDocuments(docs));
+    const unsubActivities = activityService.subscribeToAllActivities((activities) => setAllActivities(activities));
+
     return () => {
       unsubLeads();
       unsubContacts();
+      unsubPersonal();
+      unsubDocs();
+      unsubActivities();
     };
   }, []);
 
@@ -68,7 +115,6 @@ export const Header: React.FC<HeaderProps> = ({
     }
     setIsSearchOpen(val.trim().length > 0);
   };
-
 
   // Click-outside listener for dropdowns
   useEffect(() => {
@@ -88,14 +134,30 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, []);
 
-  // Compute search results categorized into: Proprietăți, Cereri, Contacte
-  const { matchedProperties, matchedCereri, matchedContacts, totalResults } = useMemo(() => {
+  // Compute search results categorized into: Proprietăți, Lead-uri, Cereri, Clienți, Personal, Documente, Vizionări
+  const { 
+    matchedProperties, 
+    matchedCereri, 
+    matchedContacts, 
+    matchedPersonal, 
+    matchedDocuments, 
+    matchedTours, 
+    totalResults 
+  } = useMemo(() => {
     const q = localQuery.toLowerCase().trim();
     if (!q) {
-      return { matchedProperties: [], matchedCereri: [], matchedContacts: [], totalResults: 0 };
+      return { 
+        matchedProperties: [], 
+        matchedCereri: [], 
+        matchedContacts: [], 
+        matchedPersonal: [], 
+        matchedDocuments: [], 
+        matchedTours: [], 
+        totalResults: 0 
+      };
     }
 
-    // 1. Cereri: Leads in 'AreInteres' or starting with 'cerere' or with cerere notes
+    // 1. Cereri: Leads in 'AreInteres' or starting with 'cerere' or with cerere notes (#R...)
     const cereri = allLeads.filter(l => {
       const isCerere = l.status === 'AreInteres' || 
                        (l.title && l.title.toLowerCase().startsWith('cerere')) || 
@@ -108,10 +170,11 @@ export const Header: React.FC<HeaderProps> = ({
       const zoneMatch = (l.zone || "").toLowerCase().includes(q);
       const priceMatch = (l.price || "").toLowerCase().includes(q);
       const notesMatch = (l.notes || "").toLowerCase().includes(q);
-      return titleMatch || nameMatch || phoneMatch || zoneMatch || priceMatch || notesMatch;
+      const idMatch = (l.propertyId || "").toLowerCase().includes(q);
+      return titleMatch || nameMatch || phoneMatch || zoneMatch || priceMatch || notesMatch || idMatch;
     }).slice(0, 5);
 
-    // 2. Proprietăți: All other leads (properties on market, archive, etc.)
+    // 2. Proprietăți: All active/listed leads (#P... / #L...)
     const properties = allLeads.filter(l => {
       const isCerere = l.status === 'AreInteres' || 
                        (l.title && l.title.toLowerCase().startsWith('cerere'));
@@ -127,44 +190,102 @@ export const Header: React.FC<HeaderProps> = ({
       return titleMatch || zoneMatch || priceMatch || nameMatch || phoneMatch || idMatch || catMatch;
     }).slice(0, 5);
 
-    // 3. Contacte: Contacts list
+    // 3. Clienți: Contacts list (#C...)
     const contacts = allContacts.filter(c => {
       const fullName = `${c.firstName || ""} ${c.lastName || ""}`.toLowerCase();
       const nameMatch = fullName.includes(q);
       const phoneMatch = (c.phone || "").toLowerCase().includes(q);
       const typeMatch = (c.type || "").toLowerCase().includes(q);
       const propIdMatch = (c.propertyId || "").toLowerCase().includes(q);
-      return nameMatch || phoneMatch || typeMatch || propIdMatch;
+      const contactIdMatch = (c.contactId || "").toLowerCase().includes(q);
+      return nameMatch || phoneMatch || typeMatch || propIdMatch || contactIdMatch;
     }).slice(0, 5);
+
+    // 4. Personal: Staff list (#S...)
+    const personal = allPersonal.filter(p => {
+      const nameMatch = (p.name || "").toLowerCase().includes(q);
+      const roleMatch = (p.role || "").toLowerCase().includes(q);
+      const phoneMatch = (p.phone || "").toLowerCase().includes(q);
+      const emailMatch = (p.email || "").toLowerCase().includes(q);
+      const zoneMatch = (p.zone || "").toLowerCase().includes(q);
+      const idMatch = (p.personalId || "").toLowerCase().includes(q);
+      return nameMatch || roleMatch || phoneMatch || emailMatch || zoneMatch || idMatch;
+    }).slice(0, 5);
+
+    // 5. Documente: Documents list (#D...)
+    const documents = allDocuments.filter(d => {
+      const titleMatch = (d.title || "").toLowerCase().includes(q);
+      const typeMatch = (d.type || "").toLowerCase().includes(q);
+      const propMatch = (d.propertyId || "").toLowerCase().includes(q);
+      const clientMatch = (d.clientId || "").toLowerCase().includes(q);
+      const idMatch = (d.documentId || "").toLowerCase().includes(q);
+      return titleMatch || typeMatch || propMatch || clientMatch || idMatch;
+    }).slice(0, 4);
+
+    // 6. Activități / Activities (#A...)
+    const activities = allActivities.filter(a => {
+      const nameMatch = (a.clientName || "").toLowerCase().includes(q);
+      const propMatch = (a.propertyId || "").toLowerCase().includes(q);
+      const dateMatch = (a.date || "").toLowerCase().includes(q);
+      const staffMatch = (a.staffName || "").toLowerCase().includes(q);
+      const typeMatch = (a.type || "").toLowerCase().includes(q);
+      const idMatch = ((a.activityId || (a as any).tourId) || "").toLowerCase().includes(q);
+      return nameMatch || propMatch || dateMatch || staffMatch || typeMatch || idMatch;
+    }).slice(0, 4);
 
     return {
       matchedProperties: properties,
       matchedCereri: cereri,
       matchedContacts: contacts,
-      totalResults: properties.length + cereri.length + contacts.length
+      matchedPersonal: personal,
+      matchedDocuments: documents,
+      matchedActivities: activities,
+      totalResults: properties.length + cereri.length + contacts.length + personal.length + documents.length + activities.length
     };
-  }, [allLeads, allContacts, localQuery]);
+  }, [allLeads, allContacts, allPersonal, allDocuments, allActivities, localQuery]);
 
   const handleSelectProperty = (lead: Lead) => {
     setIsSearchOpen(false);
-    if (location.pathname !== '/') {
-      navigate('/');
-    }
+    if (location.pathname !== '/') navigate('/');
     onSelectLead?.(lead);
   };
 
   const handleSelectContact = (contact: Contact) => {
     setIsSearchOpen(false);
-    if (location.pathname !== '/') {
-      navigate('/');
-    }
+    if (location.pathname !== '/') navigate('/');
     onSelectContact?.(contact);
   };
+
+  const handleSelectPersonal = (member: PersonalMember) => {
+    setIsSearchOpen(false);
+    if (location.pathname !== '/') navigate('/');
+    onSelectPersonal?.(member);
+  };
+
+  const handleSelectDocument = (doc: DocumentItem) => {
+    setIsSearchOpen(false);
+    if (location.pathname !== '/') navigate('/');
+    onSelectDocument?.(doc);
+  };
+
+  const handleSelectActivity = (activity: Activity) => {
+    setIsSearchOpen(false);
+    navigate('/calendar');
+    if (onSelectActivity) {
+      onSelectActivity(activity);
+    } else if (onSelectTour) {
+      onSelectTour(activity as any);
+    }
+  };
+
+  const handleAddClientAction = onAddClientClick || onAddContactClick;
+  const handleAddStaffAction = onAddStaffClick || onAddPersonalClick;
+  const handleAddActivityAction = onAddActivityClick || onAddTourClick;
 
   return (
     <header className="shrink-0 bg-white border-b border-gray-200 shadow-none relative z-[100] h-[50px]">
       <div className="h-full flex justify-between items-stretch">
-        {/* Center section: Global Search Bar spanning all remaining space */}
+        {/* Center section: Global Search Bar */}
         <div className="group flex-1 h-full min-w-0 relative flex items-center bg-white hover:bg-gray-50/60 focus-within:bg-gray-50 transition-colors" ref={searchContainerRef}>
           <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-gray-700 group-hover:text-gray-500 transition-colors">
             <Search size={15} className="shrink-0 block" />
@@ -178,7 +299,7 @@ export const Header: React.FC<HeaderProps> = ({
                 setIsSearchOpen(true);
               }
             }}
-            placeholder="Caută proprietăți, cereri sau contacte..."
+            placeholder="Caută proprietăți, cereri, clienți, personal, documente sau vizionări..."
             className="w-full h-full pl-11 pr-10 text-xs leading-[50px] text-gray-900 placeholder:text-gray-400 bg-transparent border-0 focus:outline-none focus:ring-0 font-sans cursor-text"
           />
           {localQuery && (
@@ -196,14 +317,14 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Instant Search Results Dropdown */}
           {isSearchOpen && localQuery.trim().length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-0 bg-white border border-gray-200 border-t-0 shadow-2xl z-[250] max-h-[460px] overflow-y-auto divide-y divide-gray-100">
+            <div className="absolute left-0 right-0 top-full mt-0 bg-white border border-gray-200 border-t-0 shadow-2xl z-[250] max-h-[480px] overflow-y-auto divide-y divide-gray-100">
               {totalResults === 0 ? (
                 <div className="py-8 px-4 text-center text-xs text-gray-500">
                   Niciun rezultat găsit pentru <span className="font-semibold text-gray-800">"{localQuery}"</span>
                 </div>
               ) : (
                 <>
-                  {/* 1. Proprietăți */}
+                  {/* 1. Proprietăți (#P... / #L...) */}
                   {matchedProperties.length > 0 && (
                     <div>
                       <div className="px-4 py-1.5 bg-gray-50/90 text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 flex items-center justify-between">
@@ -220,23 +341,22 @@ export const Header: React.FC<HeaderProps> = ({
                             className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50/80 transition-colors cursor-pointer text-left select-none"
                           >
                             <div className="flex items-center gap-2.5 min-w-0 pr-3">
-                              <div className="w-7 h-7 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                              <div className="w-7 h-7 rounded-md bg-[#BE9662]/10 border border-[#BE9662]/20 text-[#BE9662] flex items-center justify-center shrink-0">
                                 <Building2 size={14} />
                               </div>
                               <div className="min-w-0">
-                                <div className="text-xs font-semibold text-gray-900 truncate">
-                                  {lead.title || "Proprietate fără titlu"}
+                                <div className="text-xs font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                                  <span className="truncate">{lead.title || "Proprietate fără titlu"}</span>
+                                  {lead.propertyId && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-gray-100 text-gray-700 border border-gray-200 shrink-0">
+                                      #{lead.propertyId}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
                                   <span>{lead.zone || "Zonă nespecificată"}</span>
                                   <span>•</span>
                                   <span className="font-mono font-medium text-gray-700">{lead.price}</span>
-                                  {lead.ownerPhone && lead.ownerPhone !== "Nespecificat" && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{lead.ownerPhone}</span>
-                                    </>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -249,7 +369,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   )}
 
-                  {/* 2. Cereri */}
+                  {/* 2. Cereri (#R...) */}
                   {matchedCereri.length > 0 && (
                     <div>
                       <div className="px-4 py-1.5 bg-amber-50/50 text-[10px] font-bold uppercase tracking-wider text-amber-800 border-b border-amber-100/60 flex items-center justify-between">
@@ -270,13 +390,16 @@ export const Header: React.FC<HeaderProps> = ({
                                 <ClipboardList size={14} />
                               </div>
                               <div className="min-w-0">
-                                <div className="text-xs font-semibold text-gray-900 truncate">
-                                  {cerere.title || "Cerere fără titlu"}
+                                <div className="text-xs font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                                  <span className="truncate">{cerere.title || "Cerere fără titlu"}</span>
+                                  {cerere.propertyId && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                      #{cerere.propertyId}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
                                   <span>Client: {cerere.ownerName || "Nespecificat"}</span>
-                                  <span>•</span>
-                                  <span className="font-mono text-gray-700">{cerere.ownerPhone}</span>
                                   <span>•</span>
                                   <span>Buget: {cerere.price}</span>
                                 </div>
@@ -291,44 +414,37 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   )}
 
-                  {/* 3. Contacte */}
+                  {/* 3. Clienți (#C...) */}
                   {matchedContacts.length > 0 && (
                     <div>
                       <div className="px-4 py-1.5 bg-emerald-50/40 text-[10px] font-bold uppercase tracking-wider text-emerald-800 border-b border-emerald-100/60 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
-                          <User size={12} className="text-emerald-600" />
-                          Contacte ({matchedContacts.length})
+                          <Users size={12} className="text-emerald-600" />
+                          Clienți ({matchedContacts.length})
                         </span>
                       </div>
                       <div className="divide-y divide-gray-50">
-                        {matchedContacts.map((contact) => (
+                        {matchedContacts.map((contact, idx) => (
                           <div
-                            key={contact.id}
+                            key={contact.id || idx}
                             onClick={() => handleSelectContact(contact)}
                             className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-emerald-50/30 transition-colors cursor-pointer text-left select-none"
                           >
                             <div className="flex items-center gap-2.5 min-w-0 pr-3">
                               <div className="w-7 h-7 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                                <User size={14} />
+                                <Users size={14} />
                               </div>
                               <div className="min-w-0">
-                                <div className="text-xs font-semibold text-gray-900 truncate">
-                                  {contact.firstName} {contact.lastName}
+                                <div className="text-xs font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                                  <span className="truncate">{contact.firstName} {contact.lastName}</span>
+                                  {contact.contactId && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                                      #{contact.contactId}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
                                   <span className="font-mono">{contact.phone}</span>
-                                  {contact.propertyId && (
-                                    <>
-                                      <span>•</span>
-                                      <span>Prop: {contact.propertyId}</span>
-                                    </>
-                                  )}
-                                  {contact.commissionValue && (
-                                    <>
-                                      <span>•</span>
-                                      <span>Comision: {contact.commissionValue}</span>
-                                    </>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -340,6 +456,152 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     </div>
                   )}
+
+                  {/* 4. Personal (#S...) */}
+                  {matchedPersonal.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1.5 bg-[#BE9662]/10 text-[10px] font-bold uppercase tracking-wider text-[#051D35] border-b border-[#BE9662]/20 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <UserCheck size={12} className="text-[#BE9662]" />
+                          Personal & Echipă ({matchedPersonal.length})
+                        </span>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {matchedPersonal.map((member, idx) => (
+                          <div
+                            key={member.id || idx}
+                            onClick={() => handleSelectPersonal(member)}
+                            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-[#BE9662]/5 transition-colors cursor-pointer text-left select-none"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                              <div className="w-7 h-7 rounded-md bg-[#BE9662]/15 border border-[#BE9662]/30 text-[#BE9662] flex items-center justify-center shrink-0">
+                                <UserCheck size={14} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                                  <span className="truncate">{member.name}</span>
+                                  {member.personalId && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#BE9662]/15 text-[#051D35] border border-[#BE9662]/30 shrink-0">
+                                      #{member.personalId}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
+                                  <span className="font-medium text-gray-700">{member.role}</span>
+                                  <span>•</span>
+                                  <span className="font-mono">{member.phone}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 shrink-0">
+                              {member.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 5. Documente (#D...) */}
+                  {matchedDocuments.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1.5 bg-blue-50/50 text-[10px] font-bold uppercase tracking-wider text-blue-800 border-b border-blue-100/60 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <FileText size={12} className="text-blue-600" />
+                          Documente ({matchedDocuments.length})
+                        </span>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {matchedDocuments.map((doc, idx) => (
+                          <div
+                            key={doc.id || idx}
+                            onClick={() => handleSelectDocument(doc)}
+                            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-blue-50/30 transition-colors cursor-pointer text-left select-none"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                              <div className="w-7 h-7 rounded-md bg-blue-100/60 border border-blue-200 text-blue-700 flex items-center justify-center shrink-0">
+                                <FileText size={14} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                                  <span className="truncate">{doc.title}</span>
+                                  {doc.documentId && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
+                                      #{doc.documentId}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
+                                  <span className="font-medium text-gray-700">{doc.type}</span>
+                                  {doc.propertyId && (
+                                    <>
+                                      <span>•</span>
+                                      <span>Proprietate: #{doc.propertyId}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded border border-blue-200 bg-blue-50 text-blue-700 shrink-0">
+                              Document
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 6. Activități (#A...) */}
+                  {matchedActivities.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1.5 bg-[#051D35]/5 text-[10px] font-bold uppercase tracking-wider text-[#051D35] border-b border-gray-100 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Compass size={12} className="text-[#BE9662]" />
+                          Activități ({matchedActivities.length})
+                        </span>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {matchedActivities.map((act, idx) => {
+                          const displayId = act.activityId || (act as any).tourId;
+                          return (
+                            <div
+                              key={act.id || idx}
+                              onClick={() => handleSelectActivity(act)}
+                              className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-[#051D35]/5 transition-colors cursor-pointer text-left select-none"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                                <div className="w-7 h-7 rounded-md bg-[#BE9662]/15 border border-[#BE9662]/30 text-[#BE9662] flex items-center justify-center shrink-0">
+                                  <Compass size={14} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-xs font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                                    <span className="truncate">{act.clientName}</span>
+                                    {displayId && (
+                                      <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#BE9662]/15 text-[#051D35] border border-[#BE9662]/30 shrink-0">
+                                        #{displayId}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
+                                    <span>{act.date} {act.hour}</span>
+                                    {act.propertyId && (
+                                      <>
+                                        <span>•</span>
+                                        <span>Prop: #{act.propertyId}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded border border-[#BE9662]/30 bg-[#BE9662]/10 text-[#051D35] shrink-0">
+                                {act.type || "Activitate"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -348,7 +610,7 @@ export const Header: React.FC<HeaderProps> = ({
    
         {/* Right actions */}
         <div className="flex items-stretch h-full shrink-0">
-          {/* Calendar (icon-only) */}
+          {/* Calendar */}
           <button 
             type="button"
             onClick={() => navigate('/calendar')}
@@ -362,55 +624,55 @@ export const Header: React.FC<HeaderProps> = ({
             <Calendar size={16} className="shrink-0 block" />
           </button>
 
-          {/* Alerte (Notificări) - right next to Adaugă */}
+          {/* Alerte */}
           <button 
             type="button"
             onClick={onNotificationsClick}
-            className="h-full px-[20px] w-auto flex items-center justify-center border-l border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors relative cursor-pointer select-none shrink-0 focus:outline-none"
+            className="h-full px-[20px] w-auto flex items-center justify-center border-l border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-[#051D35] transition-colors relative cursor-pointer select-none shrink-0 focus:outline-none"
             title="Alerte și Notificări"
           >
-            <div className="w-2 h-2 bg-indigo-600 rounded-full absolute top-[13px] right-[14px] border border-white" />
+            <div className="w-2 h-2 bg-[#BE9662] rounded-full absolute top-[13px] right-[14px] border border-white" />
             <Bell size={16} className="shrink-0 block" />
           </button>
   
           {/* Adaugă Split Button */}
           <div className="relative h-full flex items-stretch border-l border-gray-200 shrink-0" ref={dropdownRef}>
-            {/* Left direct action button: executes first option (Adaugă proprietate) */}
+            {/* Direct action button: Default to Adaugă proprietate */}
             <button 
               type="button"
               onClick={() => {
                 setDropdownOpen(false);
                 onAddClick();
               }}
-              className="h-full px-[20px] w-auto flex items-center justify-center gap-1.5 text-xs font-medium bg-gray-900 hover:bg-black text-white transition-colors cursor-pointer select-none focus:outline-none"
+              className="h-full px-[20px] w-auto flex items-center justify-center gap-1.5 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors cursor-pointer select-none focus:outline-none"
               title="Adaugă proprietate"
             >
-              <Plus size={15} className="shrink-0 block" />
+              <Plus size={15} className="shrink-0 block text-[#BE9662]" />
               <span className="leading-none flex items-center">Adaugă</span>
             </button>
 
-            {/* Right independent chevron toggle button */}
+            {/* Right chevron toggle button */}
             <button 
               type="button"
               onClick={() => setDropdownOpen(prev => !prev)}
-              className={`h-full px-3 w-auto flex items-center justify-center bg-gray-900 hover:bg-black text-white transition-colors cursor-pointer select-none border-l border-gray-800 focus:outline-none ${
-                dropdownOpen ? 'bg-black' : ''
+              className={`h-full px-3 w-auto flex items-center justify-center bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors cursor-pointer select-none border-l border-[#0d3459] focus:outline-none ${
+                dropdownOpen ? 'bg-[#0a2b4a]' : ''
               }`}
-              title="Opțiuni adăugare"
+              title="Toate opțiunile de adăugare"
               aria-expanded={dropdownOpen}
             >
               <ChevronDown 
                 size={14} 
-                className={`shrink-0 block transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} 
+                className={`shrink-0 block text-[#BE9662] transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} 
               />
             </button>
 
-            {/* Dropdown Menu (48px item heights, styled similarly to main menu) */}
+            {/* Dropdown Menu (all 7 entities, 48px item heights) */}
             {dropdownOpen && (
               <div 
-                className="absolute right-0 top-full mt-0 w-[220px] bg-white border border-gray-200 shadow-xl z-[250] divide-y divide-gray-200 overflow-hidden"
+                className="absolute right-0 top-full mt-0 w-[230px] bg-white border border-gray-200 shadow-xl z-[250] divide-y divide-gray-100 overflow-hidden"
               >
-                {/* Option 1: Adaugă proprietate */}
+                {/* 1: Adaugă proprietate (#P...) */}
                 <button
                   type="button"
                   onClick={() => {
@@ -423,16 +685,27 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="leading-none flex items-center">Adaugă proprietate</span>
                 </button>
 
-                {/* Option 2: Adaugă cerere */}
+                {/* 2: Adaugă lead (#L...) */}
                 <button
                   type="button"
                   onClick={() => {
                     setDropdownOpen(false);
-                    if (onAddCerereClick) {
-                      onAddCerereClick();
-                    } else {
-                      onAddClick();
-                    }
+                    if (onAddLeadClick) onAddLeadClick();
+                    else onAddClick();
+                  }}
+                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
+                >
+                  <Inbox size={16} className="text-gray-500 shrink-0 block" />
+                  <span className="leading-none flex items-center">Adaugă lead</span>
+                </button>
+
+                {/* 3: Adaugă cerere (#R...) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    if (onAddCerereClick) onAddCerereClick();
+                    else onAddClick();
                   }}
                   className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
                 >
@@ -440,19 +713,56 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="leading-none flex items-center">Adaugă cerere</span>
                 </button>
 
-                {/* Option 3: Adaugă contact */}
+                {/* 4: Adaugă client (#C...) */}
                 <button
                   type="button"
                   onClick={() => {
                     setDropdownOpen(false);
-                    if (onAddContactClick) {
-                      onAddContactClick();
-                    }
+                    if (handleAddClientAction) handleAddClientAction();
                   }}
                   className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
                 >
-                  <UserPlus size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă contact</span>
+                  <Users size={16} className="text-gray-500 shrink-0 block" />
+                  <span className="leading-none flex items-center">Adaugă client</span>
+                </button>
+
+                {/* 5: Adaugă personal (#S...) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    if (handleAddStaffAction) handleAddStaffAction();
+                  }}
+                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
+                >
+                  <UserCheck size={16} className="text-gray-500 shrink-0 block" />
+                  <span className="leading-none flex items-center">Adaugă personal</span>
+                </button>
+
+                {/* 6: Adaugă document (#D01, #D1029...) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    if (onAddDocumentClick) onAddDocumentClick();
+                  }}
+                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
+                >
+                  <FileText size={16} className="text-gray-500 shrink-0 block" />
+                  <span className="leading-none flex items-center">Adaugă document</span>
+                </button>
+
+                {/* 7: Adaugă activitate (#A1, #A1022...) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    if (handleAddActivityAction) handleAddActivityAction();
+                  }}
+                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
+                >
+                  <Compass size={16} className="text-gray-500 shrink-0 block" />
+                  <span className="leading-none flex items-center">Adaugă activitate</span>
                 </button>
               </div>
             )}

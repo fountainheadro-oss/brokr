@@ -2,16 +2,22 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Header } from "../components/Header";
 import { Sidebar, NavSubItem, NavTransactionType } from "../components/Sidebar";
+import { ContactsView } from "../components/ContactsView";
+import { PersonalView } from "../components/PersonalView";
 import { AddLeadModal } from "../components/AddLeadModal";
 import { LeadList } from "../components/LeadList";
 import { LeadCard } from "../components/LeadCard";
 import { leadsService, Lead, LeadStatus } from "../services/leadsService";
 import { contactsService, Contact } from "../services/contactsService";
+import { personalService, PersonalMember } from "../services/personalService";
 import { viewingsService, Viewing } from "../services/viewingsService";
 import { downloadVCard } from "../lib/vcard";
 import { AddContactModal } from "../components/AddContactModal";
 import { AddCerereModal } from "../components/AddCerereModal";
 import { AddViewingModal } from "../components/AddViewingModal";
+import { AddDocumentModal } from "../components/AddDocumentModal";
+import { AddActivityModal } from "../components/AddActivityModal";
+import { AddTourModal } from "../components/AddTourModal";
 import { PropertyQuickViewModal } from "../components/PropertyQuickViewModal";
 import { NotificationsModal } from "../components/NotificationsModal";
 import { ExtractionRulesModal } from "../components/ExtractionRulesModal";
@@ -272,33 +278,38 @@ export const Home: React.FC = () => {
   });
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>('Toate');
+  const [activeSidebarItem, setActiveSidebarItem] = useState<NavSubItem>('Proprietăți');
   const location = useLocation();
 
-  const handleSelectSidebarNav = (type: NavTransactionType, subItem: NavSubItem) => {
-    setTransactionFilter(type);
-    if (subItem === 'Lead-uri') {
+  const handleSelectSidebarItem = (subItem: NavSubItem) => {
+    const normalized = subItem === 'Contacte' ? 'Clienți' : subItem;
+    setActiveSidebarItem(normalized);
+    if (normalized === 'Lead-uri') {
       setActiveTab('Nevalidata');
-    } else if (subItem === 'Cereri') {
+    } else if (normalized === 'Cereri') {
       setActiveTab('AreInteres');
-    } else if (subItem === 'Proprietăți') {
+    } else if (normalized === 'Proprietăți') {
       setActiveTab('Activa');
     }
   };
 
-  const currentSubItem: NavSubItem = useMemo(() => {
+  useEffect(() => {
+    if (activeSidebarItem === 'Clienți' || activeSidebarItem === 'Contacte' || activeSidebarItem === 'Personal') return;
     if (activeTab === 'Nevalidata' || activeTab === 'Calificata') {
-      return 'Lead-uri';
+      setActiveSidebarItem('Lead-uri');
+    } else if (activeTab === 'AreInteres') {
+      setActiveSidebarItem('Cereri');
+    } else {
+      setActiveSidebarItem('Proprietăți');
     }
-    if (activeTab === 'AreInteres') {
-      return 'Cereri';
-    }
-    return 'Proprietăți';
   }, [activeTab]);
 
   useEffect(() => {
     if (location.state && (location.state as any).sidebarNav) {
-      const { type, subItem } = (location.state as any).sidebarNav;
-      handleSelectSidebarNav(type, subItem);
+      const { subItem } = (location.state as any).sidebarNav;
+      if (subItem) {
+        handleSelectSidebarItem(subItem);
+      }
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -306,10 +317,14 @@ export const Home: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('Toate');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [personal, setPersonal] = useState<PersonalMember[]>([]);
   const [viewings, setViewings] = useState<Viewing[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCerereModalOpen, setIsCerereModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isViewingModalOpen, setIsViewingModalOpen] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -953,17 +968,22 @@ export const Home: React.FC = () => {
       const unsubContacts = contactsService.subscribeToContacts((updatedContacts) => {
         setContacts(updatedContacts);
       });
+      const unsubPersonal = personalService.subscribeToPersonal((updatedPersonal) => {
+        setPersonal(updatedPersonal);
+      });
       const unsubNotifications = notificationsService.getNotifications((updatedNotifications) => {
         setNotifications(updatedNotifications);
       });
       return () => {
         unsubLeads();
         unsubContacts();
+        unsubPersonal();
         unsubNotifications();
       };
     } else {
       setLeads([]);
       setContacts([]);
+      setPersonal([]);
     }
   }, [user]);
 
@@ -1400,10 +1420,11 @@ export const Home: React.FC = () => {
   return (
     <div className="h-full w-full flex flex-row overflow-hidden bg-gray-50">
       <Sidebar 
-        activeType={transactionFilter}
-        activeSubItem={currentSubItem}
-        onSelectNav={handleSelectSidebarNav}
+        activeSubItem={activeSidebarItem}
+        onSelectItem={handleSelectSidebarItem}
         leads={leads}
+        contacts={contacts}
+        personal={personal}
       />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         <AnimatePresence mode="popLayout" initial={false}>
@@ -1418,18 +1439,48 @@ export const Home: React.FC = () => {
           >
             <Header 
               onAddClick={() => setIsModalOpen(true)} 
+              onAddLeadClick={() => setIsModalOpen(true)}
               onAddCerereClick={() => setIsCerereModalOpen(true)}
               onAddContactClick={() => setIsContactModalOpen(true)}
+              onAddClientClick={() => setIsContactModalOpen(true)}
+              onAddPersonalClick={() => setActiveSidebarItem('Personal')}
+              onAddStaffClick={() => setActiveSidebarItem('Personal')}
+              onAddDocumentClick={() => setIsDocumentModalOpen(true)}
+              onAddActivityClick={() => setIsActivityModalOpen(true)}
+              onAddTourClick={() => setIsActivityModalOpen(true)}
               onNotificationsClick={() => setIsNotificationsOpen(true)} 
               onExtractionRulesClick={() => setIsExtractionRulesOpen(true)}
               onSelectLead={handleLeadClick}
-              onSelectContact={(c) => setSelectedContact(c)}
+              onSelectContact={(c) => {
+                setSelectedContact(c);
+                setActiveSidebarItem('Clienți');
+              }}
+              onSelectPersonal={(_p) => {
+                setActiveSidebarItem('Personal');
+              }}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
 
-            {/* Tabs & Filters */}
-            <div className="bg-white border-b border-gray-200 shrink-0 h-[40px] overflow-hidden">
+            {activeSidebarItem === 'Clienți' || activeSidebarItem === 'Contacte' ? (
+              <ContactsView 
+                contacts={contacts}
+                onAddContactClick={() => setIsContactModalOpen(true)}
+                onSelectProperty={(propId) => {
+                  const lead = leads.find(l => l.propertyId === propId || l.id === propId);
+                  if (lead) {
+                    handleLeadClick(lead);
+                  }
+                }}
+              />
+            ) : activeSidebarItem === 'Personal' ? (
+              <PersonalView 
+                personal={personal}
+              />
+            ) : (
+              <>
+                {/* Tabs & Filters */}
+                <div className="bg-white border-b border-gray-200 shrink-0 h-[40px] overflow-hidden">
               <div className="px-4 w-full h-full">
                 <div className="flex items-center justify-between overflow-x-auto no-scrollbar overflow-y-hidden h-full">
                   <div className="flex gap-5 h-full">
@@ -1446,7 +1497,7 @@ export const Home: React.FC = () => {
                           onClick={() => setActiveTab(tab)}
                           className={`relative px-1 h-full flex items-center text-[12px] font-medium transition-all whitespace-nowrap ${
                             activeTab === tab 
-                            ? "text-gray-900 font-semibold" 
+                            ? "text-[#051D35] font-semibold" 
                             : "text-gray-500 hover:text-gray-800"
                           }`}
                         >
@@ -1454,13 +1505,13 @@ export const Home: React.FC = () => {
                             {STATUS_LABELS[tab]}
                             <span className="text-[11px] font-mono text-gray-400">({tabCount})</span>
                             {hasNew && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#BE9662] animate-pulse" />
                             )}
                           </span>
                           {activeTab === tab && (
                             <motion.div 
                               layoutId="activeTab"
-                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-900"
+                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#051D35]"
                               initial={false}
                             />
                           )}
@@ -1482,7 +1533,7 @@ export const Home: React.FC = () => {
                           onClick={() => setActiveTab(tab)}
                           className={`relative px-1 h-full flex items-center text-[12px] font-medium transition-all whitespace-nowrap ${
                             activeTab === tab 
-                            ? "text-gray-900 font-semibold" 
+                            ? "text-[#051D35] font-semibold" 
                             : "text-gray-500 hover:text-gray-800"
                           }`}
                         >
@@ -1490,13 +1541,13 @@ export const Home: React.FC = () => {
                             {STATUS_LABELS[tab]}
                             <span className="text-[11px] font-mono text-gray-400">({tabCount})</span>
                             {hasNew && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#BE9662] animate-pulse" />
                             )}
                           </span>
                           {activeTab === tab && (
                             <motion.div 
                               layoutId="activeTab"
-                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-900"
+                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#051D35]"
                               initial={false}
                             />
                           )}
@@ -1529,7 +1580,7 @@ export const Home: React.FC = () => {
                           />
                           <div className={`w-3.5 h-3.5 rounded-full border transition-all ${
                             transactionFilter === type
-                            ? "border-gray-900 bg-gray-900"
+                            ? "border-[#051D35] bg-[#051D35]"
                             : "border-gray-300 group-hover:border-gray-400 bg-white"
                           }`} />
                           {transactionFilter === type && (
@@ -1538,7 +1589,7 @@ export const Home: React.FC = () => {
                         </div>
                         <span className={`text-[12px] transition-colors ${
                           transactionFilter === type
-                          ? "text-gray-900 font-medium"
+                          ? "text-[#051D35] font-medium"
                           : "text-gray-500 group-hover:text-gray-700"
                         }`}>
                           {type}
@@ -1612,7 +1663,9 @@ export const Home: React.FC = () => {
                 />
               )}
             </div>
-          </motion.div>
+          </>
+        )}
+      </motion.div>
         ) : selectedContact ? (
           <motion.div
             key="contact-detail"
@@ -1742,7 +1795,7 @@ export const Home: React.FC = () => {
                     onClick={() => scrollToSection(sect.id)}
                     className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${
                       isSelected
-                        ? "bg-gray-900 text-white border-gray-900"
+                        ? "bg-[#051D35] text-white border-[#051D35]"
                         : "bg-white text-gray-500 border-gray-100 hover:text-gray-900 hover:border-gray-200"
                     }`}
                   >
@@ -1857,7 +1910,7 @@ export const Home: React.FC = () => {
                                     ? "bg-blue-50 text-blue-600" 
                                     : contact.type === "Buyer" 
                                     ? "bg-green-50 text-green-600" 
-                                    : "bg-purple-50 text-purple-600"
+                                    : "bg-[#BE9662]/10 text-[#051D35] border border-[#BE9662]/30"
                                   }`}>
                                     {contact.type}
                                   </span>
@@ -2165,7 +2218,7 @@ export const Home: React.FC = () => {
                         className={`h-8 px-3 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm ${
                           copiedShareId === selectedLead.id
                             ? "bg-green-600 text-white"
-                            : "bg-gray-900 text-white hover:bg-gray-800"
+                            : "bg-[#051D35] text-white hover:bg-[#0a2b4a]"
                         }`}
                         title="Copiază link-ul"
                       >
@@ -2209,6 +2262,20 @@ export const Home: React.FC = () => {
         isOpen={isContactModalOpen} 
         onClose={() => setIsContactModalOpen(false)} 
         defaultPropertyId={selectedLead?.id} 
+      />
+      <AddDocumentModal 
+        isOpen={isDocumentModalOpen} 
+        onClose={() => setIsDocumentModalOpen(false)} 
+        defaultPropertyId={selectedLead?.propertyId || selectedLead?.id} 
+      />
+      <AddActivityModal 
+        isOpen={isActivityModalOpen || isTourModalOpen} 
+        onClose={() => {
+          setIsActivityModalOpen(false);
+          setIsTourModalOpen(false);
+        }} 
+        defaultPropertyId={selectedLead?.propertyId || selectedLead?.id} 
+        defaultClientName={selectedLead?.ownerName !== "Nespecificat" ? selectedLead?.ownerName : ""} 
       />
       <AddViewingModal 
         isOpen={isViewingModalOpen} 
@@ -2401,7 +2468,7 @@ const InfoRow = ({ label, value, isLink }: { label: string, value: string, isLin
   <div className="flex flex-col gap-0.5 py-2 border-b border-gray-100 last:border-0">
     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
     {isLink ? (
-      <a href={value} target="_blank" rel="noreferrer" className="text-[12px] text-indigo-600 font-medium truncate hover:underline">
+      <a href={value} target="_blank" rel="noreferrer" className="text-[12px] text-[#BE9662] font-medium truncate hover:underline">
         Deschide URL
       </a>
     ) : (

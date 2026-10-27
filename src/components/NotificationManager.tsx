@@ -45,7 +45,7 @@ export const NotificationManager: React.FC = () => {
                     console.error('[NotificationManager] Request permission failed:', err);
                   }
                 }}
-                className="px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-sm"
+                className="px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white bg-[#051D35] hover:bg-[#0a2b4a] rounded-lg transition-all shadow-sm"
               >
                 Permite Alerte
               </button>

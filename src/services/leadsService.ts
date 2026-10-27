@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ExtractionResult } from './geminiService';
+import { entityIdService } from './entityIdService';
 
 export type LeadStatus = 'Nevalidata' | 'Calificata' | 'Activa' | 'AreInteres' | 'InNegociere' | 'Finalizata' | 'Arhiva' | 'Sterse';
 
@@ -51,9 +52,27 @@ const LEADS_COLLECTION = 'leads';
 export const leadsService = {
   addLead: async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt' | 'lastMovedAt'>) => {
     try {
+      let propertyId = leadData.propertyId;
+      if (!propertyId) {
+        const isCerere = leadData.status === 'AreInteres' || 
+                         (leadData.title && leadData.title.toLowerCase().startsWith('cerere')) || 
+                         (leadData.notes && leadData.notes.toLowerCase().includes('cerere'));
+        const isProperty = leadData.status === 'Activa' || leadData.status === 'InNegociere' || leadData.status === 'Finalizata' || leadData.status === 'Arhiva';
+        
+        if (isCerere) {
+          propertyId = await entityIdService.getNextId('cerere');
+        } else if (isProperty) {
+          propertyId = await entityIdService.getNextId('property');
+        } else {
+          // Default for new incoming items (Nevalidata / Calificata): Lead (L1, L2, ...)
+          propertyId = await entityIdService.getNextId('lead');
+        }
+      }
+
       const now = serverTimestamp();
       return await addDoc(collection(db, LEADS_COLLECTION), {
         ...leadData,
+        propertyId,
         createdAt: now,
         updatedAt: now,
         lastMovedAt: now
@@ -67,11 +86,24 @@ export const leadsService = {
     const path = `${LEADS_COLLECTION}/${leadId}`;
     try {
       const leadRef = doc(db, LEADS_COLLECTION, leadId);
-      return await updateDoc(leadRef, {
+      const updates: any = {
         status: newStatus,
         updatedAt: serverTimestamp(),
         lastMovedAt: serverTimestamp()
-      });
+      };
+
+      // When promoted to active Property, assign P ID if it only had an L ID or no ID
+      if (newStatus === 'Activa' || newStatus === 'InNegociere' || newStatus === 'Finalizata') {
+        const snap = await getDoc(leadRef);
+        if (snap.exists()) {
+          const currentData = snap.data();
+          if (!currentData.propertyId || currentData.propertyId.startsWith('L')) {
+            updates.propertyId = await entityIdService.getNextId('property');
+          }
+        }
+      }
+
+      return await updateDoc(leadRef, updates);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }

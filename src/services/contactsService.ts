@@ -12,11 +12,13 @@ import {
   where
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { entityIdService } from './entityIdService';
 
 export type ContactType = 'Owner' | 'Renter' | 'Buyer' | 'Agent';
 
 export interface Contact {
   id?: string;
+  contactId?: string; // e.g. CO1, CO2, CO1026
   firstName: string;
   lastName: string;
   type: ContactType;
@@ -32,9 +34,11 @@ const CONTACTS_COLLECTION = 'contacts';
 export const contactsService = {
   addContact: async (contactData: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
+      const contactId = contactData.contactId || (await entityIdService.getNextId('client'));
       const now = serverTimestamp();
       return await addDoc(collection(db, CONTACTS_COLLECTION), {
         ...contactData,
+        contactId,
         createdAt: now,
         updatedAt: now
       });

@@ -227,7 +227,7 @@ export const AddViewingModal: React.FC<AddViewingModalProps> = ({ isOpen, onClos
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isSubmitting || !selectedContactId || !date || !hour}
-                  className="w-full h-16 bg-gray-900 text-white rounded-full font-bold text-[16px] flex items-center justify-center gap-3 shadow-lg shadow-gray-200 hover:bg-black transition-all disabled:opacity-50 mt-4"
+                  className="w-full h-16 bg-[#051D35] text-white rounded-full font-bold text-[16px] flex items-center justify-center gap-3 shadow-lg shadow-gray-200 hover:bg-[#0a2b4a] transition-all disabled:opacity-50 mt-4"
                 >
                   {isSubmitting ? (
                     <Loader2 size={24} className="animate-spin" />

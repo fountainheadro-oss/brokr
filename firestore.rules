@@ -35,6 +35,30 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /personal/{personalId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /documents/{documentId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /tours/{tourId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /activities/{activityId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /viewings/{viewingId} {
       allow read, write: if isSignedIn();
     }

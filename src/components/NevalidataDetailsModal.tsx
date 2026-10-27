@@ -413,7 +413,7 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
                 <button
                   onClick={handlePromote}
                   disabled={saving}
-                  className="h-11 px-6 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-[13px] flex items-center gap-2 transition-all disabled:opacity-50 shadow-md shadow-gray-200"
+                  className="h-11 px-6 rounded-xl bg-[#051D35] hover:bg-[#0a2b4a] text-white font-bold text-[13px] flex items-center gap-2 transition-all disabled:opacity-50 shadow-md shadow-gray-200"
                 >
                   <Check size={16} />
                   <span>Mută în Calificată</span>

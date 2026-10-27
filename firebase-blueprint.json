@@ -53,6 +53,85 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["propertyId", "contactId", "contactName", "date", "hour", "createdAt", "updatedAt"]
+    },
+    "Personal": {
+      "title": "Agency Staff Member",
+      "description": "An agent, broker, manager, or staff member in the agency",
+      "type": "object",
+      "properties": {
+        "personalId": { "type": "string", "description": "Sequential ID formatted as S1, S2, S1026" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string", "enum": ["Activ", "Inactiv"] },
+        "zone": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "role", "phone", "status", "createdAt", "updatedAt"]
+    },
+    "Document": {
+      "title": "Property Document",
+      "description": "Contracts, title deeds, floor plans, energy certificates, and identity files",
+      "type": "object",
+      "properties": {
+        "documentId": { "type": "string", "description": "Sequential ID formatted as D01, D02, D1029" },
+        "title": { "type": "string" },
+        "type": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "staffId": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "type", "createdAt", "updatedAt"]
+    },
+    "Tour": {
+      "title": "Property Tour Viewing",
+      "description": "A scheduled property tour viewing with a client and staff member",
+      "type": "object",
+      "properties": {
+        "tourId": { "type": "string", "description": "Sequential ID formatted as T1, T2, T1021" },
+        "propertyId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "hour": { "type": "string" },
+        "status": { "type": "string", "enum": ["Programată", "Realizată", "Anulată"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "clientName", "date", "hour", "createdAt", "updatedAt"]
+    },
+    "Activity": {
+      "title": "Agency Activity",
+      "description": "A scheduled activity such as property viewing, meeting, call, inspection, or task",
+      "type": "object",
+      "properties": {
+        "activityId": { "type": "string", "description": "Sequential ID formatted as A1, A2, A1022" },
+        "propertyId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "type": { "type": "string", "description": "Vizionare, Întâlnire, Apel, Notă, Evaluare, Altele" },
+        "date": { "type": "string", "format": "date" },
+        "hour": { "type": "string" },
+        "status": { "type": "string", "enum": ["Programată", "Realizată", "Anulată"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientName", "date", "hour", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -62,7 +141,23 @@
     },
     "contacts": {
       "schema": { "$ref": "Contact" },
-      "description": "Collection of property contacts (Owners, Renters, Buyers)"
+      "description": "Collection of property contacts / clients (Owners, Renters, Buyers)"
+    },
+    "personal": {
+      "schema": { "$ref": "Personal" },
+      "description": "Collection of agency staff and team members"
+    },
+    "documents": {
+      "schema": { "$ref": "Document" },
+      "description": "Collection of agency and property documents"
+    },
+    "activities": {
+      "schema": { "$ref": "Activity" },
+      "description": "Collection of agency activities (viewings, meetings, tasks)"
+    },
+    "tours": {
+      "schema": { "$ref": "Tour" },
+      "description": "Collection of scheduled tours / viewings"
     },
     "viewings": {
       "schema": { "$ref": "Viewing" },

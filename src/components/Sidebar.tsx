@@ -1,34 +1,40 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
-  KeyRound, 
-  Tag, 
   Building2, 
   ClipboardList, 
   Inbox, 
-  ChevronDown, 
   PanelLeftClose, 
-  PanelLeft
+  PanelLeft,
+  Users,
+  UserCheck
 } from "lucide-react";
 import { Lead } from "../services/leadsService";
+import { Contact } from "../services/contactsService";
+import { PersonalMember } from "../services/personalService";
 
-export type NavSubItem = 'Lead-uri' | 'Cereri' | 'Proprietăți';
+export type NavSubItem = 'Lead-uri' | 'Cereri' | 'Proprietăți' | 'Clienți' | 'Contacte' | 'Personal';
 export type NavTransactionType = 'Închiriere' | 'Vânzare';
 
 interface SidebarProps {
   activeType?: NavTransactionType | 'Toate';
   activeSubItem?: NavSubItem;
-  onSelectNav?: (type: NavTransactionType, subItem: NavSubItem) => void;
+  onSelectItem?: (subItem: NavSubItem) => void;
+  onSelectNav?: (type: any, subItem: NavSubItem) => void;
   leads?: Lead[];
+  contacts?: Contact[];
+  personal?: PersonalMember[];
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  activeType,
   activeSubItem,
+  onSelectItem,
   onSelectNav,
   leads = [],
+  contacts = [],
+  personal = [],
   isCollapsed: controlledCollapsed,
   onToggleCollapse: controlledToggle
 }) => {
@@ -52,37 +58,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Accordion states: both open by default
-  const [openInchirieri, setOpenInchirieri] = useState(true);
-  const [openVanzari, setOpenVanzari] = useState(true);
-
-  // Helper to check active state
-  const isActive = (type: NavTransactionType, subItem: NavSubItem) => {
-    if (location.pathname === '/calendar') return false;
-    return activeType === type && activeSubItem === subItem;
-  };
-
-  const handleItemClick = (type: NavTransactionType, subItem: NavSubItem) => {
+  const handleItemClick = (subItem: NavSubItem) => {
     if (location.pathname !== '/') {
       navigate('/');
     }
-    if (onSelectNav) {
-      onSelectNav(type, subItem);
+    const normalizedItem = subItem === 'Contacte' ? 'Clienți' : subItem;
+    if (onSelectItem) {
+      onSelectItem(normalizedItem);
+    } else if (onSelectNav) {
+      onSelectNav(undefined, normalizedItem);
     }
   };
 
-  // Compute live item counts based on leads
+  // Compute live item counts based on leads, contacts, and personal
   const counts = React.useMemo(() => {
-    const isTypeMatch = (leadType: string | undefined, target: 'Închiriere' | 'Vânzare') => {
-      if (!leadType) return false;
-      if (target === 'Închiriere') return leadType === 'Închiriere' || leadType === 'Inchiriere';
-      if (target === 'Vânzare') return leadType === 'Vânzare' || leadType === 'Vanzare';
-      return leadType === target;
-    };
-
-    const inchirieriLeads = leads.filter(l => isTypeMatch(l.transactionType as string, 'Închiriere'));
-    const vanzariLeads = leads.filter(l => isTypeMatch(l.transactionType as string, 'Vânzare'));
-
     const isCerere = (l: Lead) => l.status === 'AreInteres' || 
                                   (l.title && l.title.toLowerCase().startsWith('cerere')) || 
                                   (l.notes && l.notes.toLowerCase().includes('cerere'));
@@ -91,18 +80,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const isPropItem = (l: Lead) => !isCerere(l) && !isLeadItem(l) && l.status !== 'Sterse';
 
     return {
-      inchirieri: {
-        leads: inchirieriLeads.filter(isLeadItem).length,
-        cereri: inchirieriLeads.filter(isCerere).length,
-        proprietati: inchirieriLeads.filter(isPropItem).length,
-      },
-      vanzari: {
-        leads: vanzariLeads.filter(isLeadItem).length,
-        cereri: vanzariLeads.filter(isCerere).length,
-        proprietati: vanzariLeads.filter(isPropItem).length,
-      }
+      leads: leads.filter(isLeadItem).length,
+      cereri: leads.filter(isCerere).length,
+      proprietati: leads.filter(isPropItem).length,
+      clienti: contacts.length,
+      personal: personal.length
     };
-  }, [leads]);
+  }, [leads, contacts, personal]);
+
+  const isClientiActive = activeSubItem === 'Clienți' || activeSubItem === 'Contacte';
 
   return (
     <aside 
@@ -116,14 +102,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <>
             <div 
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 cursor-pointer select-none group"
-              title="Acasă - brokr crm"
+              className="flex items-center cursor-pointer select-none group"
+              title="Acasă - brokr"
             >
-              <span className="text-[16px] font-bold tracking-tight text-gray-900 font-sans leading-none flex items-center">
-                brokr<span className="text-indigo-600">.</span>
-              </span>
-              <span className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase border border-gray-200 px-1.5 py-0.5 rounded bg-gray-50/90 leading-none flex items-center group-hover:text-gray-600 transition-colors">
-                crm
+              <span className="text-[22px] font-bold tracking-tight text-[#051D35] font-sans leading-none flex items-center">
+                brokr<span className="text-[#BE9662]">.</span>
               </span>
             </div>
 
@@ -138,251 +121,214 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </>
         ) : (
           <div className="w-full flex items-center justify-center">
+            {/* Collapsed square container with exact same dimensions (w-9 h-9) as the menu buttons below */}
             <button 
               type="button"
               onClick={handleToggleCollapse}
-              className="p-1.5 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors cursor-pointer focus:outline-none flex items-center justify-center"
-              title="Extinde meniul (brokr crm)"
+              className="w-9 h-9 rounded-md flex items-center justify-center bg-[#051D35] text-white hover:opacity-95 transition-all cursor-pointer focus:outline-none shadow-xs"
+              title="Extinde meniul (brokr)"
             >
-              <span className="text-[16px] font-bold tracking-tight text-gray-900 font-sans leading-none">
-                b<span className="text-indigo-600">.</span>
+              <span className="text-[17px] font-bold tracking-tight text-white font-sans leading-none">
+                b<span className="text-[#BE9662]">.</span>
               </span>
             </button>
           </div>
         )}
       </div>
 
-      {/* Main navigation container below the top box */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-4">
+      {/* Main navigation container: Lead-uri, Cereri, Proprietăți, Clienți, Personal */}
+      <div className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
         {!isCollapsed ? (
           <>
-            {/* Accordion 1: Închirieri */}
-            <div className="space-y-1">
-              <button
-                type="button"
-                onClick={() => setOpenInchirieri(prev => !prev)}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors cursor-pointer select-none group"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <KeyRound size={14} className="text-indigo-600 shrink-0" />
-                  <span className="tracking-tight truncate text-[12px]">Închirieri</span>
-                </div>
-                <ChevronDown 
-                  size={13} 
-                  className={`text-gray-400 transition-transform duration-200 shrink-0 ${openInchirieri ? 'rotate-0' : '-rotate-90'}`}
-                />
-              </button>
-
-              {openInchirieri && (
-                <div className="ml-2 pl-2 border-l border-gray-200 space-y-0.5 pt-0.5">
-                  {/* Lead-uri */}
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('Închiriere', 'Lead-uri')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                      isActive('Închiriere', 'Lead-uri')
-                        ? 'bg-gray-900 text-white font-medium'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Inbox size={13} className={isActive('Închiriere', 'Lead-uri') ? 'text-white' : 'text-gray-400'} />
-                      <span className="truncate">Lead-uri</span>
-                    </div>
-                    {counts.inchirieri.leads > 0 && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                        isActive('Închiriere', 'Lead-uri') ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {counts.inchirieri.leads}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Cereri */}
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('Închiriere', 'Cereri')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                      isActive('Închiriere', 'Cereri')
-                        ? 'bg-gray-900 text-white font-medium'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ClipboardList size={13} className={isActive('Închiriere', 'Cereri') ? 'text-white' : 'text-gray-400'} />
-                      <span className="truncate">Cereri</span>
-                    </div>
-                    {counts.inchirieri.cereri > 0 && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                        isActive('Închiriere', 'Cereri') ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {counts.inchirieri.cereri}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Proprietăți */}
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('Închiriere', 'Proprietăți')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                      isActive('Închiriere', 'Proprietăți')
-                        ? 'bg-gray-900 text-white font-medium'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Building2 size={13} className={isActive('Închiriere', 'Proprietăți') ? 'text-white' : 'text-gray-400'} />
-                      <span className="truncate">Proprietăți</span>
-                    </div>
-                    {counts.inchirieri.proprietati > 0 && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                        isActive('Închiriere', 'Proprietăți') ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {counts.inchirieri.proprietati}
-                      </span>
-                    )}
-                  </button>
-                </div>
+            {/* Lead-uri */}
+            <button
+              type="button"
+              onClick={() => handleItemClick('Lead-uri')}
+              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
+                activeSubItem === 'Lead-uri' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-white font-medium shadow-xs'
+                  : 'text-gray-600 hover:text-[#051D35] hover:bg-gray-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Inbox size={14} className={activeSubItem === 'Lead-uri' && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
+                <span className="truncate">Lead-uri</span>
+              </div>
+              {counts.leads > 0 && (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                  activeSubItem === 'Lead-uri' && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {counts.leads}
+                </span>
               )}
-            </div>
+            </button>
 
-            {/* Accordion 2: Vânzări */}
-            <div className="space-y-1 pt-1">
-              <button
-                type="button"
-                onClick={() => setOpenVanzari(prev => !prev)}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors cursor-pointer select-none group"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Tag size={14} className="text-emerald-600 shrink-0" />
-                  <span className="tracking-tight truncate text-[12px]">Vânzări</span>
-                </div>
-                <ChevronDown 
-                  size={13} 
-                  className={`text-gray-400 transition-transform duration-200 shrink-0 ${openVanzari ? 'rotate-0' : '-rotate-90'}`}
-                />
-              </button>
-
-              {openVanzari && (
-                <div className="ml-2 pl-2 border-l border-gray-200 space-y-0.5 pt-0.5">
-                  {/* Lead-uri */}
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('Vânzare', 'Lead-uri')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                      isActive('Vânzare', 'Lead-uri')
-                        ? 'bg-gray-900 text-white font-medium'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Inbox size={13} className={isActive('Vânzare', 'Lead-uri') ? 'text-white' : 'text-gray-400'} />
-                      <span className="truncate">Lead-uri</span>
-                    </div>
-                    {counts.vanzari.leads > 0 && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                        isActive('Vânzare', 'Lead-uri') ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {counts.vanzari.leads}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Cereri */}
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('Vânzare', 'Cereri')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                      isActive('Vânzare', 'Cereri')
-                        ? 'bg-gray-900 text-white font-medium'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ClipboardList size={13} className={isActive('Vânzare', 'Cereri') ? 'text-white' : 'text-gray-400'} />
-                      <span className="truncate">Cereri</span>
-                    </div>
-                    {counts.vanzari.cereri > 0 && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                        isActive('Vânzare', 'Cereri') ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {counts.vanzari.cereri}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Proprietăți */}
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('Vânzare', 'Proprietăți')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                      isActive('Vânzare', 'Proprietăți')
-                        ? 'bg-gray-900 text-white font-medium'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Building2 size={13} className={isActive('Vânzare', 'Proprietăți') ? 'text-white' : 'text-gray-400'} />
-                      <span className="truncate">Proprietăți</span>
-                    </div>
-                    {counts.vanzari.proprietati > 0 && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                        isActive('Vânzare', 'Proprietăți') ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {counts.vanzari.proprietati}
-                      </span>
-                    )}
-                  </button>
-                </div>
+            {/* Cereri */}
+            <button
+              type="button"
+              onClick={() => handleItemClick('Cereri')}
+              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
+                activeSubItem === 'Cereri' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-white font-medium shadow-xs'
+                  : 'text-gray-600 hover:text-[#051D35] hover:bg-gray-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <ClipboardList size={14} className={activeSubItem === 'Cereri' && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
+                <span className="truncate">Cereri</span>
+              </div>
+              {counts.cereri > 0 && (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                  activeSubItem === 'Cereri' && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {counts.cereri}
+                </span>
               )}
-            </div>
+            </button>
+
+            {/* Proprietăți */}
+            <button
+              type="button"
+              onClick={() => handleItemClick('Proprietăți')}
+              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
+                activeSubItem === 'Proprietăți' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-white font-medium shadow-xs'
+                  : 'text-gray-600 hover:text-[#051D35] hover:bg-gray-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Building2 size={14} className={activeSubItem === 'Proprietăți' && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
+                <span className="truncate">Proprietăți</span>
+              </div>
+              {counts.proprietati > 0 && (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                  activeSubItem === 'Proprietăți' && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {counts.proprietati}
+                </span>
+              )}
+            </button>
+
+            {/* Clienți */}
+            <button
+              type="button"
+              onClick={() => handleItemClick('Clienți')}
+              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
+                isClientiActive && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-white font-medium shadow-xs'
+                  : 'text-gray-600 hover:text-[#051D35] hover:bg-gray-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Users size={14} className={isClientiActive && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
+                <span className="truncate">Clienți</span>
+              </div>
+              {counts.clienti > 0 && (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                  isClientiActive && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {counts.clienti}
+                </span>
+              )}
+            </button>
+
+            {/* Personal */}
+            <button
+              type="button"
+              onClick={() => handleItemClick('Personal')}
+              className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
+                activeSubItem === 'Personal' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-white font-medium shadow-xs'
+                  : 'text-gray-600 hover:text-[#051D35] hover:bg-gray-100/70'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <UserCheck size={14} className={activeSubItem === 'Personal' && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
+                <span className="truncate">Personal</span>
+              </div>
+              {counts.personal > 0 && (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
+                  activeSubItem === 'Personal' && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {counts.personal}
+                </span>
+              )}
+            </button>
           </>
         ) : (
-          /* Collapsed View: Compact vertical icon actions */
-          <div className="flex flex-col items-center space-y-3 py-1">
-            {/* Închirieri group */}
-            <div className="flex flex-col items-center space-y-1.5 pb-2 border-b border-gray-200 w-full">
-              <button
-                type="button"
-                onClick={() => handleItemClick('Închiriere', 'Proprietăți')}
-                className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
-                  activeType === 'Închiriere'
-                    ? 'bg-indigo-50 text-indigo-700'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-                title="Închirieri"
-              >
-                <KeyRound size={16} />
-              </button>
-            </div>
-
-            {/* Vânzări group */}
-            <div className="flex flex-col items-center space-y-1.5 w-full">
-              <button
-                type="button"
-                onClick={() => handleItemClick('Vânzare', 'Proprietăți')}
-                className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
-                  activeType === 'Vânzare'
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-                title="Vânzări"
-              >
-                <Tag size={16} />
-              </button>
-            </div>
+          /* Collapsed View: Compact vertical icon actions with 36px x 36px (w-9 h-9) buttons */
+          <div className="flex flex-col items-center space-y-2 py-1">
+            <button
+              type="button"
+              onClick={() => handleItemClick('Lead-uri')}
+              className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                activeSubItem === 'Lead-uri' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-[#BE9662]'
+                  : 'text-gray-500 hover:text-[#051D35] hover:bg-gray-100'
+              }`}
+              title={`Lead-uri (${counts.leads})`}
+            >
+              <Inbox size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick('Cereri')}
+              className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                activeSubItem === 'Cereri' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-[#BE9662]'
+                  : 'text-gray-500 hover:text-[#051D35] hover:bg-gray-100'
+              }`}
+              title={`Cereri (${counts.cereri})`}
+            >
+              <ClipboardList size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick('Proprietăți')}
+              className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                activeSubItem === 'Proprietăți' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-[#BE9662]'
+                  : 'text-gray-500 hover:text-[#051D35] hover:bg-gray-100'
+              }`}
+              title={`Proprietăți (${counts.proprietati})`}
+            >
+              <Building2 size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick('Clienți')}
+              className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                isClientiActive && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-[#BE9662]'
+                  : 'text-gray-500 hover:text-[#051D35] hover:bg-gray-100'
+              }`}
+              title={`Clienți (${counts.clienti})`}
+            >
+              <Users size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleItemClick('Personal')}
+              className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
+                activeSubItem === 'Personal' && location.pathname !== '/calendar'
+                  ? 'bg-[#051D35] text-[#BE9662]'
+                  : 'text-gray-500 hover:text-[#051D35] hover:bg-gray-100'
+              }`}
+              title={`Personal (${counts.personal})`}
+            >
+              <UserCheck size={16} />
+            </button>
           </div>
         )}
       </div>
 
-      {/* Bottom Footer Action: Collapse / Expand toggle button (Render.com style) */}
+      {/* Bottom Footer Action: Collapse / Expand toggle button */}
       <div className="shrink-0 border-t border-gray-200 p-2 bg-white">
         {!isCollapsed ? (
           <button
             type="button"
             onClick={handleToggleCollapse}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100/70 rounded-md transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-gray-500 hover:text-[#051D35] hover:bg-gray-100/70 rounded-md transition-colors cursor-pointer"
             title="Restrânge bara laterală"
           >
             <PanelLeftClose size={15} className="shrink-0" />
@@ -392,7 +338,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={handleToggleCollapse}
-            className="w-full flex items-center justify-center py-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100/70 rounded-md transition-colors cursor-pointer"
+            className="w-full flex items-center justify-center py-2 text-gray-500 hover:text-[#051D35] hover:bg-gray-100/70 rounded-md transition-colors cursor-pointer"
             title="Extinde bara laterală"
           >
             <PanelLeft size={16} />

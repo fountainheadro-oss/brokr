@@ -285,7 +285,7 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                              <div className="flex flex-col">
                                <span className="text-[16px] font-bold text-gray-900">{contact.firstName} {contact.lastName}</span>
                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wider inline-block w-fit mt-1 ${
-                                 contact.type === "Buyer" ? "bg-green-50 text-green-600" : "bg-purple-50 text-purple-600"
+                                 contact.type === "Buyer" ? "bg-green-50 text-green-600" : "bg-[#BE9662]/10 text-[#051D35] border border-[#BE9662]/30"
                                }`}>
                                  {contact.type}
                                </span>

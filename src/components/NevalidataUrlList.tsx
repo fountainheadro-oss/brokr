@@ -57,6 +57,11 @@ export const NevalidataUrlList: React.FC<NevalidataUrlListProps> = ({
                 >
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2.5">
+                      {lead.propertyId && (
+                        <span className="shrink-0 px-2 py-0.5 rounded font-mono text-[11px] font-semibold bg-gray-100 text-gray-800 border border-gray-200">
+                          #{lead.propertyId}
+                        </span>
+                      )}
                       <span className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-gray-100 text-gray-600 tracking-wider flex items-center gap-1">
                         <Globe size={11} />
                         {domain}

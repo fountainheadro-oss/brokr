@@ -189,7 +189,7 @@ export const SharedProperty: React.FC = () => {
         </p>
         <Link 
           to="/"
-          className="px-6 py-2.5 rounded-full bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition-all shadow-sm"
+          className="px-6 py-2.5 rounded-full bg-[#051D35] text-white text-xs font-bold hover:bg-[#0a2b4a] transition-all shadow-sm"
         >
           Mergi la pagina principală
         </Link>
@@ -243,7 +243,7 @@ export const SharedProperty: React.FC = () => {
               className={`h-7 px-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
                 isCopied 
                   ? "bg-green-600 text-white" 
-                  : "bg-gray-900 text-white hover:bg-black"
+                  : "bg-[#051D35] text-white hover:bg-[#0a2b4a]"
               }`}
               title="Copiază linkul proprietății"
             >
@@ -263,7 +263,7 @@ export const SharedProperty: React.FC = () => {
                 onClick={() => scrollToSection(sect.id)}
                 className={`shrink-0 px-2 py-0.5 rounded text-[11px] font-medium transition-all border ${
                   isSelected
-                    ? "bg-gray-900 text-white border-gray-900"
+                    ? "bg-[#051D35] text-white border-[#051D35]"
                     : "bg-white text-gray-600 border-gray-200 hover:text-gray-900"
                 }`}
               >
@@ -351,7 +351,7 @@ export const SharedProperty: React.FC = () => {
                       }`}
                     >
                       <span className="truncate">{sect.label}</span>
-                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-gray-900" />}
+                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#051D35]" />}
                     </button>
                   );
                 })}
@@ -361,7 +361,7 @@ export const SharedProperty: React.FC = () => {
             {/* Under the page navigation: Share the Link Card */}
             <div className="bg-white p-3.5 rounded-md border border-gray-200 shadow-none space-y-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded bg-[#BE9662]/10 text-[#BE9662] flex items-center justify-center shrink-0">
                   <Share2 size={13} />
                 </div>
                 <div className="min-w-0">
@@ -378,7 +378,7 @@ export const SharedProperty: React.FC = () => {
                   className={`h-6 px-2 rounded text-[11px] font-medium transition-all flex items-center gap-1 shrink-0 ${
                     isCopied
                       ? "bg-green-600 text-white"
-                      : "bg-gray-900 text-white hover:bg-black"
+                      : "bg-[#051D35] text-white hover:bg-[#0a2b4a]"
                   }`}
                   title="Copiază link-ul"
                 >

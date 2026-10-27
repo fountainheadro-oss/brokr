@@ -321,7 +321,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-              className="pointer-events-auto bg-slate-900 border border-slate-800 text-white p-4 rounded-xl shadow-2xl flex items-start gap-3 relative overflow-hidden"
+              className="pointer-events-auto bg-[#051D35] border border-[#0d3459] text-white p-4 rounded-xl shadow-2xl flex items-start gap-3 relative overflow-hidden"
             >
               <div className="w-9 h-9 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
                 <Sparkles size={16} />
@@ -579,7 +579,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
                   <button
                     onClick={closeSettings}
-                    className="px-5 py-2.5 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer shadow transition-all"
+                    className="px-5 py-2.5 bg-[#051D35] border border-[#051D35] hover:bg-[#0a2b4a] text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer shadow transition-all"
                   >
                     Salvez Setările
                   </button>

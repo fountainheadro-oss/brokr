@@ -23,6 +23,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { ViewingDetailsModal } from "../components/ViewingDetailsModal";
 import { leadsService, Lead } from "../services/leadsService";
+import { contactsService, Contact } from "../services/contactsService";
+import { personalService, PersonalMember } from "../services/personalService";
 import { auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -30,6 +32,8 @@ export const Calendar: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewings, setViewings] = useState<Viewing[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [personal, setPersonal] = useState<PersonalMember[]>([]);
   const [selectedViewing, setSelectedViewing] = useState<Viewing | null>(null);
   const [isViewingDetailsOpen, setIsViewingDetailsOpen] = useState(false);
   const navigate = useNavigate();
@@ -52,6 +56,8 @@ export const Calendar: React.FC = () => {
     if (!user) {
       setViewings([]);
       setLeads([]);
+      setContacts([]);
+      setPersonal([]);
       return;
     }
 
@@ -61,9 +67,17 @@ export const Calendar: React.FC = () => {
     const unsubLeads = leadsService.subscribeToLeads((l) => {
       setLeads(l);
     });
+    const unsubContacts = contactsService.subscribeToContacts((c) => {
+      setContacts(c);
+    });
+    const unsubPersonal = personalService.subscribeToPersonal((p) => {
+      setPersonal(p);
+    });
     return () => {
       unsubViewings();
       unsubLeads();
+      unsubContacts();
+      unsubPersonal();
     };
   }, [user]);
 
@@ -77,8 +91,8 @@ export const Calendar: React.FC = () => {
     return (
       <div className="flex flex-col md:flex-row items-center justify-between px-4 md:px-8 py-6 bg-white border-b border-gray-50 gap-4">
         <div className="flex flex-col items-center md:items-start text-center md:text-left">
-          <h1 className="text-[20px] md:text-[28px] font-black text-gray-900 tracking-tight leading-none mb-1">Calendar Vizionări</h1>
-          <p className="text-[12px] md:text-[13px] text-gray-400 font-medium italic">Gestionează întâlnirile tale cu clienții</p>
+          <h1 className="text-[20px] md:text-[28px] font-black text-gray-900 tracking-tight leading-none mb-1">Calendar Activități</h1>
+          <p className="text-[12px] md:text-[13px] text-gray-400 font-medium italic">Gestionează vizionările și activitățile tale cu clienții</p>
         </div>
         <div className="flex items-center gap-2 md:gap-4 bg-gray-50 p-1 md:p-1.5 rounded-[16px] border border-gray-100">
           <button 
@@ -206,14 +220,24 @@ export const Calendar: React.FC = () => {
     <div className="h-full w-full flex flex-row overflow-hidden bg-[#fbfbfb]">
       <Sidebar 
         leads={leads}
-        onSelectNav={(type, subItem) => {
-          navigate('/', { state: { sidebarNav: { type, subItem } } });
+        contacts={contacts}
+        personal={personal}
+        onSelectItem={(subItem) => {
+          navigate('/', { state: { sidebarNav: { subItem } } });
         }}
       />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header 
           onAddClick={() => navigate('/')} 
+          onAddLeadClick={() => navigate('/')}
           onAddCerereClick={() => navigate('/')}
+          onAddContactClick={() => navigate('/')}
+          onAddClientClick={() => navigate('/')}
+          onAddPersonalClick={() => navigate('/')}
+          onAddStaffClick={() => navigate('/')}
+          onAddDocumentClick={() => navigate('/')}
+          onAddActivityClick={() => navigate('/')}
+          onAddTourClick={() => navigate('/')}
           onNotificationsClick={async () => {
             if ('Notification' in window) {
                const permission = await Notification.requestPermission();
@@ -226,7 +250,6 @@ export const Calendar: React.FC = () => {
               toast.error('Browserul tău nu suportă notificări de sistem.');
             }
           }} 
-          onAddContactClick={() => navigate('/')}
         />
         <main className="flex-1 overflow-hidden flex flex-col px-[10px] py-[10px]">
           <div className="flex-1 bg-white rounded-[16px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">

@@ -6,17 +6,19 @@
   --font-sans: "Neue Montreal", "PP Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Layout Constants (Crisp Render.com density scale) */
+  /* Layout Constants (Crisp density scale) */
   --spacing-edge: 16px;
   --spacing-bottom: 16px;
   --component-height: 36px;
   --otp-height: 48px;
 
-  /* Design Brand Colors (Render.com inspired clean neutral canvas) */
-  --color-primary: #111827;
-  --color-accent: #6366f1;
-  --color-accent-light: #818cf8;
-  --color-text-main: #111827;
+  /* Design Brand Colors: Primary #051D35, Accent #BE9662 */
+  --color-primary: #051D35;
+  --color-accent: #BE9662;
+  --color-accent-light: #d4b486;
+  --color-brand-navy: #051D35;
+  --color-brand-gold: #BE9662;
+  --color-text-main: #051D35;
   --color-text-secondary: #4b5563;
   --color-text-placeholder: #9ca3af;
   --color-border: #e5e7eb;
@@ -36,7 +38,7 @@
   font-size: 13px;
   font-family: var(--font-sans);
   font-weight: 450;
-  color: #111827;
+  color: #051D35;
   outline: none;
   transition: all 0.15s ease-in-out;
   border-radius: var(--radius-standard);
@@ -47,14 +49,14 @@
   &:hover {
     border: 1px solid var(--color-border-hover);
     background-color: var(--color-bg-focus);
-    color: #111827;
+    color: #051D35;
   }
 
   &:focus {
-    border: 1px solid #111827;
-    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+    border: 1px solid #051D35;
+    box-shadow: 0 0 0 2px rgba(5, 29, 53, 0.12);
     background-color: var(--color-bg-focus);
-    color: #111827;
+    color: #051D35;
   }
 }
 
@@ -90,7 +92,7 @@
     font-family: var(--font-sans);
     font-size: 13px;
     line-height: 1.45;
-    @apply antialiased selection:bg-slate-900 selection:text-white;
+    @apply antialiased selection:bg-[#051D35] selection:text-[#BE9662];
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -116,11 +118,11 @@
   }
   
   h1, h2 {
-    @apply font-sans font-semibold text-[--color-text-main] text-[16px] tracking-tight;
+    @apply font-sans font-semibold text-[#051D35] text-[16px] tracking-tight;
   }
 
   h3 {
-    @apply font-sans font-semibold text-[--color-text-main] text-[14px] tracking-tight;
+    @apply font-sans font-semibold text-[#051D35] text-[14px] tracking-tight;
   }
 
   p {

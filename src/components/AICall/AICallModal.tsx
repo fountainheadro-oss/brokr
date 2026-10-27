@@ -263,7 +263,7 @@ export const AICallModal: React.FC = () => {
                                 item.speaker === "assistant"
                                   ? "bg-white border border-gray-100 text-gray-900 rounded-tl-none"
                                   : item.speaker === "user"
-                                  ? "bg-slate-900 text-white rounded-tr-none"
+                                  ? "bg-[#051D35] text-white rounded-tr-none"
                                   : "bg-orange-50 text-[--color-accent] text-[11px] font-bold border border-orange-100 rounded-lg text-center font-mono py-1"
                               }`}
                             >
@@ -310,11 +310,11 @@ export const AICallModal: React.FC = () => {
               <div className="md:col-span-6 flex flex-col space-y-4 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
                 <div className="flex items-center justify-between shrink-0 mb-1">
                   <span className="text-xs font-black uppercase text-gray-400 tracking-wider">Notițe Structurate Structurate CRM</span>
-                  <span className="text-[10px] bg-purple-50 text-purple-600 font-black tracking-widest uppercase px-2 py-0.5 rounded-md">Live Sync</span>
+                  <span className="text-[10px] bg-[#BE9662]/10 text-[#BE9662] font-black tracking-widest uppercase px-2 py-0.5 rounded-md">Live Sync</span>
                 </div>
 
                 {/* 1. Live Summary sentence card */}
-                <div className="bg-gradient-to-br from-orange-50/10 to-purple-50/10 border border-gray-100 hover:border-orange-100 p-4 rounded-2xl shadow-sm transition-all">
+                <div className="bg-gradient-to-br from-orange-50/10 to-[#BE9662]/10 border border-gray-100 hover:border-orange-100 p-4 rounded-2xl shadow-sm transition-all">
                   <div className="flex items-center gap-2 mb-2 text-orange-600">
                     <Sparkles size={16} className="animate-spin text-[--color-accent]" />
                     <span className="text-xs font-black uppercase tracking-wider">Pe scurt (Copilot AI)</span>

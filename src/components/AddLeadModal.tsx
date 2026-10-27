@@ -124,7 +124,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <div className="w-8 h-8 rounded-lg bg-[#BE9662]/10 border border-[#BE9662]/20 flex items-center justify-center text-[#BE9662]">
                 <Building2 size={18} />
               </div>
               <div>
@@ -156,7 +156,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
                   placeholder="https://www.storia.ro/... sau olx.ro, imobiliare.ro"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662]"
                 />
               </div>
               <p className="text-[11px] text-gray-400 mt-1.5">
@@ -165,8 +165,8 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
             </div>
 
             {loading && status && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50/60 border border-indigo-100 rounded-lg text-xs text-indigo-700">
-                <Loader2 size={14} className="animate-spin text-indigo-600 shrink-0" />
+              <div className="flex items-center gap-2 px-3 py-2 bg-[#BE9662]/10 border border-[#BE9662]/20 rounded-lg text-xs text-[#051D35]">
+                <Loader2 size={14} className="animate-spin text-[#BE9662] shrink-0" />
                 <span className="font-medium">{status}</span>
               </div>
             )}
@@ -184,7 +184,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
               <button
                 type="submit"
                 disabled={loading || !url.trim()}
-                className="px-4 py-2 text-xs font-medium bg-gray-900 hover:bg-black text-white rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-2 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 {loading ? (
                   <>

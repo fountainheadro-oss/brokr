@@ -46,7 +46,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
         commissionValue: commissionValue.trim()
       });
 
-      toast.success("Contactul a fost adăugat cu succes!");
+      toast.success("Clientul a fost adăugat cu succes!");
       setFirstName("");
       setLastName("");
       setPhone("");
@@ -55,7 +55,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
       onClose();
     } catch (error: any) {
       console.error(error);
-      toast.error("Eroare la adăugarea contactului.");
+      toast.error("Eroare la adăugarea clientului.");
     } finally {
       setLoading(false);
     }
@@ -85,12 +85,12 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
                 <UserPlus size={18} />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Adaugă Contact Nou</h3>
-                <p className="text-[11px] text-gray-500">Înregistrează un contact asociat unei proprietăți</p>
+                <h3 className="text-sm font-semibold text-gray-900">Adaugă Client Nou</h3>
+                <p className="text-[11px] text-gray-500">Înregistrează un client nou cu ID automat (#C...)</p>
               </div>
             </div>
             <button
@@ -118,7 +118,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                     placeholder="ex. Andrei"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662]"
                   />
                 </div>
               </div>
@@ -132,7 +132,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                   placeholder="ex. Ionescu"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662]"
                 />
               </div>
             </div>
@@ -173,7 +173,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                   placeholder="07xxxxxxxx"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662]"
                 />
               </div>
             </div>
@@ -191,7 +191,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                     placeholder="ex. 2% sau 1000€"
                     value={commissionValue}
                     onChange={(e) => setCommissionValue(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662]"
                   />
                 </div>
               </div>
@@ -208,7 +208,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
                     placeholder="ex. P17246 sau ID"
                     value={propertyId}
                     onChange={(e) => setPropertyId(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662]"
                   />
                 </div>
               </div>
@@ -227,7 +227,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClos
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 text-xs font-medium bg-gray-900 hover:bg-black text-white rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-2 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 {loading && <Loader2 size={13} className="animate-spin" />}
                 <span>Salvează Contact</span>

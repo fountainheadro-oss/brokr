@@ -209,7 +209,7 @@ export const ExtractionRulesModal: React.FC<ExtractionRulesModalProps> = ({ isOp
                             {rule.description}
                           </p>
 
-                          <div className="relative bg-gray-900 text-gray-200 font-mono text-[10.5px] p-4 rounded-xl border border-gray-800 overflow-x-auto max-w-full group">
+                          <div className="relative bg-[#051D35] text-gray-200 font-mono text-[10.5px] p-4 rounded-xl border border-gray-800 overflow-x-auto max-w-full group">
                             <span className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-[9px] font-extrabold tracking-wider px-2 py-1 rounded cursor-pointer text-white" onClick={() => handleCopy(rule.selector, rule.id)}>
                               {copiedId === rule.id ? "COPIAT!" : "COPY RULE"}
                             </span>
@@ -275,7 +275,7 @@ export const ExtractionRulesModal: React.FC<ExtractionRulesModalProps> = ({ isOp
                       <button
                         type="submit"
                         disabled={!newSource || !newSelector}
-                        className="w-full h-11 bg-gray-950 hover:bg-black text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                        className="w-full h-11 bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                       >
                         <Check size={14} />
                         Creează Regulă de Extragere
@@ -294,19 +294,19 @@ export const ExtractionRulesModal: React.FC<ExtractionRulesModalProps> = ({ isOp
                           >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2.5">
-                                <span className="px-2 py-0.5 rounded-md bg-purple-50 text-[10px] font-extrabold text-purple-600 tracking-wider">
+                                <span className="px-2 py-0.5 rounded-md bg-[#BE9662]/10 text-[10px] font-extrabold text-[#BE9662] tracking-wider">
                                   {rule.badge}
                                 </span>
                                 <h4 className="text-sm font-black text-gray-900">{rule.source}</h4>
                                 <span className="text-[11px] text-gray-400 font-bold">•</span>
-                                <span className="text-[11px] text-purple-600 font-bold uppercase tracking-wider">
+                                <span className="text-[11px] text-[#BE9662] font-bold uppercase tracking-wider">
                                   {rule.type}
                                 </span>
                               </div>
                               <button
                                 onClick={() => toggleRule(rule.id, true)}
                                 className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider transition-all cursor-pointer ${
-                                  rule.isActive ? "bg-purple-50 text-purple-600" : "bg-gray-200 text-gray-500"
+                                  rule.isActive ? "bg-[#BE9662]/10 text-[#BE9662]" : "bg-gray-200 text-gray-500"
                                 }`}
                               >
                                 {rule.isActive ? "Activ" : "Inactiv"}
