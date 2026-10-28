@@ -44,7 +44,7 @@ export const AddCerereModal: React.FC<AddCerereModalProps> = ({ isOpen, onClose,
         ownerPhone: clientPhone.trim(),
         transactionType,
         categoria,
-        status: "AreInteres",
+        status: "Noua",
         notes: requirements.trim() ? `Cerințe cerere: ${requirements.trim()}` : ""
       });
 

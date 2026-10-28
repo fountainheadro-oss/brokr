@@ -15,9 +15,15 @@
   /* Design Brand Colors: Primary #051D35, Accent #BE9662 */
   --color-primary: #051D35;
   --color-accent: #BE9662;
-  --color-accent-light: #d4b486;
+  --color-accent-light: rgba(190, 150, 98, 0.12);
   --color-brand-navy: #051D35;
+  --color-brand-navy-hover: #0a2b4a;
+  --color-brand-navy-light: rgba(5, 29, 53, 0.06);
+  --color-brand-navy-border: rgba(5, 29, 53, 0.15);
   --color-brand-gold: #BE9662;
+  --color-brand-gold-hover: #a8824f;
+  --color-brand-gold-light: rgba(190, 150, 98, 0.12);
+  --color-brand-gold-border: rgba(190, 150, 98, 0.28);
   --color-text-main: #051D35;
   --color-text-secondary: #4b5563;
   --color-text-placeholder: #9ca3af;
@@ -38,7 +44,7 @@
   font-size: 13px;
   font-family: var(--font-sans);
   font-weight: 450;
-  color: #051D35;
+  color: var(--color-brand-navy);
   outline: none;
   transition: all 0.15s ease-in-out;
   border-radius: var(--radius-standard);
@@ -49,20 +55,44 @@
   &:hover {
     border: 1px solid var(--color-border-hover);
     background-color: var(--color-bg-focus);
-    color: #051D35;
+    color: var(--color-brand-navy);
   }
 
   &:focus {
-    border: 1px solid #051D35;
-    box-shadow: 0 0 0 2px rgba(5, 29, 53, 0.12);
+    border: 1px solid var(--color-brand-gold);
+    box-shadow: 0 0 0 2px rgba(190, 150, 98, 0.18);
     background-color: var(--color-bg-focus);
-    color: #051D35;
+    color: var(--color-brand-navy);
   }
 }
 
 @utility button-base {
-  @apply h-[34px] px-3 text-[13px] font-medium transition-all flex items-center justify-center gap-1.5;
+  @apply h-[34px] px-3 text-[13px] font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer;
   border-radius: var(--radius-standard);
+}
+
+@utility btn-brand-primary {
+  @apply h-[34px] px-4 text-[12px] font-medium bg-[--color-brand-navy] hover:bg-[--color-brand-navy-hover] text-white rounded-md transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50;
+}
+
+@utility btn-brand-accent {
+  @apply h-[34px] px-4 text-[12px] font-medium bg-[--color-brand-gold] hover:bg-[--color-brand-gold-hover] text-white rounded-md transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50;
+}
+
+@utility badge-brand-gold {
+  @apply text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[--color-brand-gold-light] text-[--color-brand-navy] border border-[--color-brand-gold-border] shrink-0;
+}
+
+@utility badge-brand-navy {
+  @apply text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[--color-brand-navy] text-white shrink-0;
+}
+
+@utility icon-brand-gold {
+  @apply w-8 h-8 rounded-lg bg-[--color-brand-gold-light] border border-[--color-brand-gold-border] flex items-center justify-center text-[--color-brand-gold] shrink-0;
+}
+
+@utility text-brand-link {
+  @apply text-[--color-brand-gold] hover:underline font-medium transition-colors cursor-pointer;
 }
 
 @layer base {

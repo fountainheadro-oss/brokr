@@ -22,6 +22,8 @@ import { ChevronLeft, ChevronRight, Clock, User, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { ViewingDetailsModal } from "../components/ViewingDetailsModal";
+import { NotificationsModal } from "../components/NotificationsModal";
+import { notificationsService, Notification as CrmNotification } from "../services/notificationsService";
 import { leadsService, Lead } from "../services/leadsService";
 import { contactsService, Contact } from "../services/contactsService";
 import { personalService, PersonalMember } from "../services/personalService";
@@ -36,6 +38,8 @@ export const Calendar: React.FC = () => {
   const [personal, setPersonal] = useState<PersonalMember[]>([]);
   const [selectedViewing, setSelectedViewing] = useState<Viewing | null>(null);
   const [isViewingDetailsOpen, setIsViewingDetailsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<CrmNotification[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const navigate = useNavigate();
   const todayRef = React.useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<any>(null);
@@ -73,11 +77,15 @@ export const Calendar: React.FC = () => {
     const unsubPersonal = personalService.subscribeToPersonal((p) => {
       setPersonal(p);
     });
+    const unsubNotifications = notificationsService.getNotifications((n) => {
+      setNotifications(n);
+    });
     return () => {
       unsubViewings();
       unsubLeads();
       unsubContacts();
       unsubPersonal();
+      unsubNotifications();
     };
   }, [user]);
 
@@ -238,18 +246,7 @@ export const Calendar: React.FC = () => {
           onAddDocumentClick={() => navigate('/')}
           onAddActivityClick={() => navigate('/')}
           onAddTourClick={() => navigate('/')}
-          onNotificationsClick={async () => {
-            if ('Notification' in window) {
-               const permission = await Notification.requestPermission();
-               if (permission === 'granted') {
-                 toast.success('Notificările de sistem au fost activate!');
-               } else {
-                 toast.error('Notificările de sistem sunt blocate de browser.');
-               }
-            } else {
-              toast.error('Browserul tău nu suportă notificări de sistem.');
-            }
-          }} 
+          onNotificationsClick={() => setIsNotificationsOpen(true)} 
         />
         <main className="flex-1 overflow-hidden flex flex-col px-[10px] py-[10px]">
           <div className="flex-1 bg-white rounded-[16px] shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -261,6 +258,12 @@ export const Calendar: React.FC = () => {
           </div>
         </main>
       </div>
+
+      <NotificationsModal 
+        isOpen={isNotificationsOpen} 
+        onClose={() => setIsNotificationsOpen(false)} 
+        notifications={notifications}
+      />
 
       <ViewingDetailsModal 
         isOpen={isViewingDetailsOpen}

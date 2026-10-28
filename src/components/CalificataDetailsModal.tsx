@@ -90,20 +90,20 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
             {/* Header section */}
             <div className="p-5 flex items-center justify-between border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
-                  <ShieldAlert size={20} />
+                <div className="w-9 h-9 rounded-lg bg-[--color-brand-gold-light] border border-[--color-brand-gold-border] text-[--color-brand-gold] flex items-center justify-center">
+                  <ShieldAlert size={18} />
                 </div>
                 <div>
-                  <h3 className="text-[16px] font-bold text-gray-900 leading-none">Proprietate Calificată</h3>
+                  <h3 className="text-[15px] font-bold text-[--color-brand-navy] leading-none">Proprietate Calificată</h3>
                   <p className="text-[11px] font-semibold text-gray-400 tracking-wider uppercase mt-1">Pregătită de activare</p>
                 </div>
               </div>
 
               <button
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-full text-gray-400 hover:text-gray-900 transition-colors shadow-sm"
+                className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-gray-900 transition-colors shadow-xs cursor-pointer"
               >
-                <X size={20} strokeWidth={2.5} />
+                <X size={16} />
               </button>
             </div>
 
@@ -113,14 +113,14 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
               {/* Title & Price info */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                  <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider ${
                     lead.transactionType === "Vânzare" || (lead.transactionType as string) === "Vanzare"
-                      ? "bg-blue-50 text-blue-600"
-                      : "bg-orange-50 text-orange-600"
+                      ? "bg-[--color-brand-navy] text-white"
+                      : "bg-[--color-brand-gold-light] text-[--color-brand-navy] border border-[--color-brand-gold-border]"
                   }`}>
                     {lead.transactionType}
                   </span>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-gray-100 text-gray-500">
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
                     {lead.categoria || "Nespecificat"}
                   </span>
                 </div>
@@ -129,7 +129,7 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
                   {lead.title}
                 </h2>
 
-                <div className="text-[20px] font-black text-[--color-accent] mt-1">
+                <div className="text-[20px] font-black text-[--color-brand-gold] mt-1 font-mono">
                   {lead.price}
                 </div>
               </div>
@@ -190,7 +190,7 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
                     href={lead.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-bold hover:underline"
+                    className="inline-flex items-center gap-1.5 text-xs text-[--color-brand-gold] font-bold hover:underline"
                   >
                     <span>Vezi anunțul original listat</span>
                     <Play size={10} className="fill-current" />
@@ -234,7 +234,7 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
                 {onOpenFullForm && (
                   <button
                     onClick={onOpenFullForm}
-                    className="h-11 px-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                    className="h-11 px-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Edit size={14} />
                     <span>Editează</span>
@@ -244,9 +244,9 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
                 <button
                   onClick={handleActivate}
                   disabled={activating}
-                  className="h-11 px-6 bg-[rgb(224,72,57)] hover:bg-[rgb(204,52,37)] text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-red-100 transition-colors"
+                  className="h-11 px-6 bg-[--color-brand-navy] hover:bg-[--color-brand-navy-hover] text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-md transition-all cursor-pointer"
                 >
-                  <Play size={14} className="fill-current" />
+                  <Play size={14} className="fill-current text-[--color-brand-gold]" />
                   <span>Activează pe Piață</span>
                 </button>
               </div>

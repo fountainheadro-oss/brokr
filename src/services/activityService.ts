@@ -19,6 +19,7 @@ export type ActivityType =
   | 'Întâlnire' 
   | 'Apel' 
   | 'Evaluare' 
+  | 'Semnare'
   | 'Semnare Contract' 
   | 'Notă' 
   | 'Altele';

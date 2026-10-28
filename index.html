@@ -14,6 +14,36 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <meta name="theme-color" content="#111827" />
+    <script>
+      // Filter out uncaught errors and rejections originating from third-party browser extensions (e.g. MetaMask inpage.js)
+      window.addEventListener('error', function(event) {
+        if (
+          (event.filename && event.filename.includes('chrome-extension://')) ||
+          (event.message && (
+            event.message.includes('MetaMask') || 
+            event.message.includes('Failed to connect to MetaMask') ||
+            event.message.includes('nkbihfbeogaeaoehlefnkodbefgpgknn')
+          ))
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return true;
+        }
+      }, true);
+
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var message = (reason && (reason.message || reason.stack || String(reason))) || '';
+        if (
+          message.includes('MetaMask') || 
+          message.includes('chrome-extension://') || 
+          message.includes('nkbihfbeogaeaoehlefnkodbefgpgknn')
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="root"></div>

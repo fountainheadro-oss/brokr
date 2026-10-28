@@ -7,6 +7,7 @@ import {
   orderBy, 
   limit, 
   updateDoc, 
+  deleteDoc,
   doc, 
   serverTimestamp 
 } from 'firebase/firestore';
@@ -41,7 +42,11 @@ export const notificationsService = {
         ...doc.data()
       })) as Notification[];
       callback(notifications);
-    }, (error) => {
+    }, (error: any) => {
+      if (!auth.currentUser || error?.code === 'permission-denied') {
+        console.warn('[notificationsService] Listener inactive or auth changed:', error?.message);
+        return;
+      }
       handleFirestoreError(error, OperationType.GET, COLLECTION_NAME);
     });
   },
@@ -54,6 +59,39 @@ export const notificationsService = {
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, COLLECTION_NAME);
+    }
+  },
+
+  markAllAsRead: async (notifications: Notification[]) => {
+    const unread = notifications.filter(n => !n.read && n.id);
+    if (unread.length === 0) return;
+    try {
+      await Promise.all(
+        unread.map(n => updateDoc(doc(db, COLLECTION_NAME, n.id!), { read: true }))
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, COLLECTION_NAME);
+    }
+  },
+
+  deleteNotification: async (notificationId: string) => {
+    const notificationRef = doc(db, COLLECTION_NAME, notificationId);
+    try {
+      await deleteDoc(notificationRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, COLLECTION_NAME);
+    }
+  },
+
+  clearAll: async (notifications: Notification[]) => {
+    const withIds = notifications.filter(n => n.id);
+    if (withIds.length === 0) return;
+    try {
+      await Promise.all(
+        withIds.map(n => deleteDoc(doc(db, COLLECTION_NAME, n.id!)))
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, COLLECTION_NAME);
     }
   },
 
@@ -72,3 +110,4 @@ export const notificationsService = {
     }
   }
 };
+

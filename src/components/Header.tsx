@@ -16,16 +16,21 @@ import {
   UserPlus 
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { leadsService, Lead } from "../services/leadsService";
+import { leadsService, Lead, isCerereLead } from "../services/leadsService";
 import { contactsService, Contact } from "../services/contactsService";
 import { personalService, PersonalMember } from "../services/personalService";
 import { documentService, DocumentItem } from "../services/documentService";
 import { activityService, Activity } from "../services/activityService";
 import { tourService, Tour } from "../services/tourService";
 import { AICallModal } from "./AICall";
+import { ProfileDrawer } from "./ProfileDrawer";
+import { ProfileModal } from "./ProfileModal";
+import { StatsModal } from "./StatsModal";
+import { auth } from "../lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface HeaderProps {
-  onAddClick: () => void;
+  onAddClick?: () => void;
   onAddLeadClick?: () => void;
   onAddCerereClick?: () => void;
   onAddContactClick?: () => void;
@@ -35,6 +40,7 @@ interface HeaderProps {
   onAddDocumentClick?: () => void;
   onAddTourClick?: () => void;
   onAddActivityClick?: () => void;
+  onCalendarClick?: () => void;
   onNotificationsClick: () => void;
   onExtractionRulesClick?: () => void;
   onSelectLead?: (lead: Lead) => void;
@@ -58,6 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAddDocumentClick,
   onAddTourClick,
   onAddActivityClick,
+  onCalendarClick,
   onNotificationsClick,
   onSelectLead,
   onSelectContact,
@@ -72,8 +79,24 @@ export const Header: React.FC<HeaderProps> = ({
   const location = useLocation();
   const isCalendar = location.pathname === '/calendar';
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  // User Profile state
+  const [currentUser, setCurrentUser] = useState<any>(auth.currentUser);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setCurrentUser(u);
+    });
+    return () => unsub();
+  }, []);
+
+  const userName = currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'Alexandru Radu');
+  const userRole = 'Broker Principal';
+  const userPhoto = currentUser?.photoURL;
+
+  // Profile Drawer and Modals state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
 
   // Search state
   const [localQuery, setLocalQuery] = useState(searchQuery);
@@ -120,9 +143,6 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
-        setDropdownOpen(false);
-      }
       if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
         setIsSearchOpen(false);
       }
@@ -136,13 +156,13 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Compute search results categorized into: Proprietăți, Lead-uri, Cereri, Clienți, Personal, Documente, Vizionări
   const { 
-    matchedProperties, 
-    matchedCereri, 
-    matchedContacts, 
-    matchedPersonal, 
-    matchedDocuments, 
-    matchedTours, 
-    totalResults 
+    matchedProperties = [], 
+    matchedCereri = [], 
+    matchedContacts = [], 
+    matchedPersonal = [], 
+    matchedDocuments = [], 
+    matchedActivities = [], 
+    totalResults = 0 
   } = useMemo(() => {
     const q = localQuery.toLowerCase().trim();
     if (!q) {
@@ -152,16 +172,14 @@ export const Header: React.FC<HeaderProps> = ({
         matchedContacts: [], 
         matchedPersonal: [], 
         matchedDocuments: [], 
-        matchedTours: [], 
+        matchedActivities: [], 
         totalResults: 0 
       };
     }
 
-    // 1. Cereri: Leads in 'AreInteres' or starting with 'cerere' or with cerere notes (#R...)
+    // 1. Cereri: All client requests (#R...)
     const cereri = allLeads.filter(l => {
-      const isCerere = l.status === 'AreInteres' || 
-                       (l.title && l.title.toLowerCase().startsWith('cerere')) || 
-                       (l.notes && l.notes.toLowerCase().includes('cerere'));
+      const isCerere = isCerereLead(l);
       if (!isCerere) return false;
 
       const titleMatch = (l.title || "").toLowerCase().includes(q);
@@ -176,8 +194,7 @@ export const Header: React.FC<HeaderProps> = ({
 
     // 2. Proprietăți: All active/listed leads (#P... / #L...)
     const properties = allLeads.filter(l => {
-      const isCerere = l.status === 'AreInteres' || 
-                       (l.title && l.title.toLowerCase().startsWith('cerere'));
+      const isCerere = isCerereLead(l);
       if (isCerere) return false;
 
       const titleMatch = (l.title || "").toLowerCase().includes(q);
@@ -613,13 +630,13 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Calendar */}
           <button 
             type="button"
-            onClick={() => navigate('/calendar')}
+            onClick={onCalendarClick || (() => navigate('/calendar'))}
             className={`h-full px-[20px] w-auto flex items-center justify-center border-l border-gray-200 transition-colors cursor-pointer select-none focus:outline-none ${
               isCalendar 
                 ? 'bg-gray-100 text-gray-900 font-semibold' 
                 : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
             }`}
-            title="Calendar"
+            title="Calendar Activități"
           >
             <Calendar size={16} className="shrink-0 block" />
           </button>
@@ -635,141 +652,73 @@ export const Header: React.FC<HeaderProps> = ({
             <Bell size={16} className="shrink-0 block" />
           </button>
   
-          {/* Adaugă Split Button */}
-          <div className="relative h-full flex items-stretch border-l border-gray-200 shrink-0" ref={dropdownRef}>
-            {/* Direct action button: Default to Adaugă proprietate */}
-            <button 
+          {/* User Profile Split Button */}
+          <div className="h-full flex items-stretch border-l border-gray-200 shrink-0 select-none">
+            {/* Main Button: Avatar + Name + Role -> Opens Profile Modal */}
+            <button
               type="button"
-              onClick={() => {
-                setDropdownOpen(false);
-                onAddClick();
-              }}
-              className="h-full px-[20px] w-auto flex items-center justify-center gap-1.5 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors cursor-pointer select-none focus:outline-none"
-              title="Adaugă proprietate"
+              onClick={() => setIsProfileModalOpen(true)}
+              className="h-full px-3.5 flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-left focus:outline-none cursor-pointer group"
+              title="Deschide Profilul Meu"
             >
-              <Plus size={15} className="shrink-0 block text-[#BE9662]" />
-              <span className="leading-none flex items-center">Adaugă</span>
-            </button>
-
-            {/* Right chevron toggle button */}
-            <button 
-              type="button"
-              onClick={() => setDropdownOpen(prev => !prev)}
-              className={`h-full px-3 w-auto flex items-center justify-center bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors cursor-pointer select-none border-l border-[#0d3459] focus:outline-none ${
-                dropdownOpen ? 'bg-[#0a2b4a]' : ''
-              }`}
-              title="Toate opțiunile de adăugare"
-              aria-expanded={dropdownOpen}
-            >
-              <ChevronDown 
-                size={14} 
-                className={`shrink-0 block text-[#BE9662] transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} 
-              />
-            </button>
-
-            {/* Dropdown Menu (all 7 entities, 48px item heights) */}
-            {dropdownOpen && (
-              <div 
-                className="absolute right-0 top-full mt-0 w-[230px] bg-white border border-gray-200 shadow-xl z-[250] divide-y divide-gray-100 overflow-hidden"
-              >
-                {/* 1: Adaugă proprietate (#P...) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    onAddClick();
-                  }}
-                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
-                >
-                  <Building2 size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă proprietate</span>
-                </button>
-
-                {/* 2: Adaugă lead (#L...) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    if (onAddLeadClick) onAddLeadClick();
-                    else onAddClick();
-                  }}
-                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
-                >
-                  <Inbox size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă lead</span>
-                </button>
-
-                {/* 3: Adaugă cerere (#R...) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    if (onAddCerereClick) onAddCerereClick();
-                    else onAddClick();
-                  }}
-                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
-                >
-                  <ClipboardList size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă cerere</span>
-                </button>
-
-                {/* 4: Adaugă client (#C...) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    if (handleAddClientAction) handleAddClientAction();
-                  }}
-                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
-                >
-                  <Users size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă client</span>
-                </button>
-
-                {/* 5: Adaugă personal (#S...) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    if (handleAddStaffAction) handleAddStaffAction();
-                  }}
-                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
-                >
-                  <UserCheck size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă personal</span>
-                </button>
-
-                {/* 6: Adaugă document (#D01, #D1029...) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    if (onAddDocumentClick) onAddDocumentClick();
-                  }}
-                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
-                >
-                  <FileText size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă document</span>
-                </button>
-
-                {/* 7: Adaugă activitate (#A1, #A1022...) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    if (handleAddActivityAction) handleAddActivityAction();
-                  }}
-                  className="w-full h-[48px] px-4 flex items-center gap-3 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors text-left cursor-pointer focus:outline-none select-none"
-                >
-                  <Compass size={16} className="text-gray-500 shrink-0 block" />
-                  <span className="leading-none flex items-center">Adaugă activitate</span>
-                </button>
+              {/* Profile Picture */}
+              <div className="w-8 h-8 rounded-lg bg-[#051D35]/5 border border-[#051D35]/15 group-hover:border-[#BE9662]/40 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs transition-colors">
+                {userPhoto ? (
+                  <img 
+                    src={userPhoto} 
+                    alt={userName} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <span className="text-xs font-bold text-[#051D35]">
+                    {userName.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
-            )}
+
+              {/* Name & Role (matching style from Clients header: title + description under it) */}
+              <div className="flex flex-col justify-center min-w-0">
+                <span className="text-[13px] font-semibold tracking-tight text-gray-900 group-hover:text-[#051D35] leading-tight truncate max-w-[130px]">
+                  {userName}
+                </span>
+                <span className="text-[10px] text-gray-500 font-medium leading-tight truncate mt-0.5">
+                  {userRole}
+                </span>
+              </div>
+            </button>
+
+            {/* Split Divider */}
+            <div className="w-px h-6 bg-gray-200 self-center" />
+
+            {/* Split Trigger Button (Chevron) -> Opens Drawer with Profile, My Stats, Log out */}
+            <button
+              type="button"
+              onClick={() => setIsProfileDrawerOpen(true)}
+              className="h-full px-2.5 flex items-center justify-center hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition-colors focus:outline-none cursor-pointer"
+              title="Meniu profil & statistici"
+            >
+              <ChevronDown size={14} className="shrink-0 transition-transform duration-200" />
+            </button>
           </div>
         </div>
       </div>
       <AICallModal />
+      <ProfileDrawer 
+        isOpen={isProfileDrawerOpen}
+        onClose={() => setIsProfileDrawerOpen(false)}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenStats={() => setIsStatsModalOpen(true)}
+      />
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onOpenStats={() => setIsStatsModalOpen(true)}
+      />
+      <StatsModal
+        isOpen={isStatsModalOpen}
+        onClose={() => setIsStatsModalOpen(false)}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+      />
     </header>
   );
 };

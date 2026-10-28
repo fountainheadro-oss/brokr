@@ -218,7 +218,7 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
                     href={lead.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[13px] font-semibold text-blue-600 hover:underline break-all flex items-center gap-1.5"
+                    className="text-[13px] font-semibold text-[--color-brand-gold] hover:underline break-all flex items-center gap-1.5"
                   >
                     <span>{lead.url}</span>
                     <ArrowUpRight size={14} className="shrink-0" />
@@ -271,7 +271,7 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
                           onClick={() => setTransactionType(type)}
                           className={`flex-1 rounded-[6px] text-xs font-bold transition-all ${
                             transactionType === type
-                              ? "bg-gray-950 text-white shadow-sm"
+                              ? "bg-[--color-brand-navy] text-white shadow-sm"
                               : "text-gray-500 hover:bg-gray-50"
                           }`}
                         >
@@ -413,7 +413,7 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
                 <button
                   onClick={handlePromote}
                   disabled={saving}
-                  className="h-11 px-6 rounded-xl bg-[#051D35] hover:bg-[#0a2b4a] text-white font-bold text-[13px] flex items-center gap-2 transition-all disabled:opacity-50 shadow-md shadow-gray-200"
+                  className="h-11 px-6 rounded-xl btn-brand-primary text-white font-bold text-[13px] flex items-center gap-2 transition-all disabled:opacity-50 shadow-md cursor-pointer"
                 >
                   <Check size={16} />
                   <span>Mută în Calificată</span>

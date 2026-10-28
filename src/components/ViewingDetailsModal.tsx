@@ -205,19 +205,19 @@ export const ViewingDetailsModal: React.FC<ViewingDetailsModalProps> = ({ isOpen
                 {/* Renter/Buyer Card */}
                 <div className="bg-white rounded-[16px] border border-gray-100 p-5 shadow-sm">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                    <div className="w-10 h-10 rounded-full bg-[--color-brand-gold-light] flex items-center justify-center text-[--color-brand-gold]">
                       <User size={20} />
                     </div>
                     <div>
-                      <p className="text-[11px] font-black text-blue-400 uppercase tracking-widest">Client (Chiriaș/Cumpărător)</p>
+                      <p className="text-[11px] font-black text-[--color-brand-gold] uppercase tracking-widest">Client (Chiriaș/Cumpărător)</p>
                       <h4 className="text-[16px] font-black text-gray-900">{renter?.firstName} {renter?.lastName || viewing.contactName}</h4>
                     </div>
                   </div>
                   
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-blue-50/30 rounded-xl border border-blue-50">
+                    <div className="flex items-center justify-between p-3 bg-[--color-brand-gold-light]/30 rounded-xl border border-[--color-brand-gold-border]">
                       <div className="flex items-center gap-2">
-                        <Euro size={16} className="text-blue-500" />
+                        <Euro size={16} className="text-[--color-brand-gold]" />
                         <span className="text-[12px] font-bold text-gray-500">Comision Client</span>
                       </div>
                       <span className="text-[14px] font-black text-gray-900">

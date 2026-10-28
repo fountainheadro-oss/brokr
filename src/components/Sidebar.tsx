@@ -9,7 +9,7 @@ import {
   Users,
   UserCheck
 } from "lucide-react";
-import { Lead } from "../services/leadsService";
+import { Lead, isCerereLead } from "../services/leadsService";
 import { Contact } from "../services/contactsService";
 import { PersonalMember } from "../services/personalService";
 
@@ -72,10 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Compute live item counts based on leads, contacts, and personal
   const counts = React.useMemo(() => {
-    const isCerere = (l: Lead) => l.status === 'AreInteres' || 
-                                  (l.title && l.title.toLowerCase().startsWith('cerere')) || 
-                                  (l.notes && l.notes.toLowerCase().includes('cerere'));
-
+    const isCerere = (l: Lead) => isCerereLead(l);
     const isLeadItem = (l: Lead) => l.status === 'Nevalidata' || l.status === 'Calificata';
     const isPropItem = (l: Lead) => !isCerere(l) && !isLeadItem(l) && l.status !== 'Sterse';
 

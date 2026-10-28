@@ -162,14 +162,14 @@ export const AddViewingModal: React.FC<AddViewingModalProps> = ({ isOpen, onClos
                           onClick={() => setSelectedAgentId(selectedAgentId === agent.id ? '' : agent.id!)}
                           className={`w-full flex items-center justify-between p-4 rounded-[16px] border transition-all text-left ${
                             selectedAgentId === agent.id
-                              ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                              ? 'border-[--color-brand-gold] bg-[--color-brand-gold-light] shadow-sm'
                               : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/50'
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${
                               selectedAgentId === agent.id 
-                                ? 'bg-blue-500 border-blue-500 text-white shadow-sm' 
+                                ? 'bg-[--color-brand-gold] border-[--color-brand-gold] text-white shadow-sm' 
                                 : 'bg-white border-gray-100 text-gray-400'
                             }`}>
                               <User size={18} />
@@ -180,7 +180,7 @@ export const AddViewingModal: React.FC<AddViewingModalProps> = ({ isOpen, onClos
                             </div>
                           </div>
                           {selectedAgentId === agent.id && (
-                            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+                            <div className="w-6 h-6 rounded-full bg-[--color-brand-gold] flex items-center justify-center text-white shadow-sm">
                               <Check size={14} strokeWidth={3} />
                             </div>
                           )}
@@ -196,13 +196,13 @@ export const AddViewingModal: React.FC<AddViewingModalProps> = ({ isOpen, onClos
                       Data
                     </label>
                     <div className="relative group">
-                      <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[--color-accent] pb-0.5 pointer-events-none transition-colors" />
+                      <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[--color-brand-gold] pb-0.5 pointer-events-none transition-colors" />
                       <input
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
                         required
-                        className="input-base w-full pl-14 pr-5 rounded-[8px] font-roboto text-base font-normal text-[#333333]"
+                        className="input-base w-full pl-14 pr-5 rounded-[8px] text-base font-normal text-gray-900"
                       />
                     </div>
                   </div>
@@ -211,13 +211,13 @@ export const AddViewingModal: React.FC<AddViewingModalProps> = ({ isOpen, onClos
                       Ora
                     </label>
                     <div className="relative group">
-                      <Clock size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[--color-accent] pb-0.5 pointer-events-none transition-colors" />
+                      <Clock size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[--color-brand-gold] pb-0.5 pointer-events-none transition-colors" />
                       <input
                         type="time"
                         value={hour}
                         onChange={(e) => setHour(e.target.value)}
                         required
-                        className="input-base w-full pl-14 pr-5 rounded-[8px] font-roboto text-base font-normal text-[#333333]"
+                        className="input-base w-full pl-14 pr-5 rounded-[8px] text-base font-normal text-gray-900"
                       />
                     </div>
                   </div>
@@ -227,7 +227,7 @@ export const AddViewingModal: React.FC<AddViewingModalProps> = ({ isOpen, onClos
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isSubmitting || !selectedContactId || !date || !hour}
-                  className="w-full h-16 bg-[#051D35] text-white rounded-full font-bold text-[16px] flex items-center justify-center gap-3 shadow-lg shadow-gray-200 hover:bg-[#0a2b4a] transition-all disabled:opacity-50 mt-4"
+                  className="w-full h-16 btn-brand-primary text-white rounded-full font-bold text-[16px] flex items-center justify-center gap-3 shadow-lg disabled:opacity-50 mt-4 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <Loader2 size={24} className="animate-spin" />

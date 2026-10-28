@@ -69,8 +69,8 @@ export const NevalidataUrlList: React.FC<NevalidataUrlListProps> = ({
                       {lead.transactionType && (
                         <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
                           lead.transactionType === "Vânzare" || (lead.transactionType as string) === "Vanzare"
-                            ? "bg-blue-50 text-blue-600"
-                            : "bg-orange-50 text-orange-600"
+                            ? "badge-brand-navy"
+                            : "badge-brand-gold"
                         }`}>
                           {lead.transactionType}
                         </span>

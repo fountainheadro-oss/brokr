@@ -15,15 +15,48 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ExtractionResult } from './geminiService';
 import { entityIdService } from './entityIdService';
 
-export type LeadStatus = 'Nevalidata' | 'Calificata' | 'Activa' | 'AreInteres' | 'InNegociere' | 'Finalizata' | 'Arhiva' | 'Sterse';
+export type LeadStatus = 
+  | 'Nevalidata' 
+  | 'Calificata' 
+  | 'Activa' 
+  | 'InNegociere' 
+  | 'Finalizata' 
+  | 'Arhiva' 
+  | 'Sterse' 
+  | 'AreInteres'
+  | 'Noua' 
+  | 'Calificare' 
+  | 'Matching' 
+  | 'Vizionare' 
+  | 'Ofertare' 
+  | 'Antecontract' 
+  | 'Contract';
+
+export const CERERI_STATUSES: LeadStatus[] = [
+  'Noua',
+  'Calificare',
+  'Matching',
+  'Vizionare',
+  'Ofertare',
+  'Antecontract',
+  'Contract'
+];
+
+export const isCerereLead = (l?: { status?: string; title?: string; notes?: string } | null): boolean => {
+  if (!l) return false;
+  if (l.status && (CERERI_STATUSES.includes(l.status as LeadStatus) || l.status === 'AreInteres')) return true;
+  if (l.title && l.title.toLowerCase().startsWith('cerere')) return true;
+  if (l.notes && l.notes.toLowerCase().includes('cerere')) return true;
+  return false;
+};
 
 export const mapStatus = (status: string): LeadStatus => {
   if (status === 'Lead-uri' || status === 'Intrata') return 'Nevalidata';
   if (status === 'Prospectare') return 'Calificata';
   if (status === 'Publicare') return 'Activa';
-  if (status === 'Cerere') return 'AreInteres';
-  if (status === 'Vizionare') return 'InNegociere';
-  if (status === 'Semnare') return 'Finalizata';
+  if (status === 'Cerere') return 'Noua';
+  if (status === 'Vizionare') return 'Vizionare';
+  if (status === 'Semnare') return 'Contract';
   return status as LeadStatus;
 };
 
@@ -54,9 +87,7 @@ export const leadsService = {
     try {
       let propertyId = leadData.propertyId;
       if (!propertyId) {
-        const isCerere = leadData.status === 'AreInteres' || 
-                         (leadData.title && leadData.title.toLowerCase().startsWith('cerere')) || 
-                         (leadData.notes && leadData.notes.toLowerCase().includes('cerere'));
+        const isCerere = isCerereLead(leadData);
         const isProperty = leadData.status === 'Activa' || leadData.status === 'InNegociere' || leadData.status === 'Finalizata' || leadData.status === 'Arhiva';
         
         if (isCerere) {

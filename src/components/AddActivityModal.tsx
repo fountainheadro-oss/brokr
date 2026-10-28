@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, 
@@ -20,6 +20,8 @@ interface AddActivityModalProps {
   defaultClientId?: string;
   defaultClientName?: string;
   defaultClientPhone?: string;
+  defaultDate?: string;
+  defaultHour?: string;
 }
 
 const ACTIVITY_TYPES: ActivityType[] = [
@@ -27,7 +29,7 @@ const ACTIVITY_TYPES: ActivityType[] = [
   "Întâlnire",
   "Apel",
   "Evaluare",
-  "Semnare Contract",
+  "Semnare",
   "Notă",
   "Altele"
 ];
@@ -38,17 +40,29 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({
   defaultPropertyId = "",
   defaultClientId = "",
   defaultClientName = "",
-  defaultClientPhone = ""
+  defaultClientPhone = "",
+  defaultDate = "",
+  defaultHour = ""
 }) => {
   const [type, setType] = useState<ActivityType>("Vizionare");
   const [propertyId, setPropertyId] = useState(defaultPropertyId);
   const [clientName, setClientName] = useState(defaultClientName);
   const [clientPhone, setClientPhone] = useState(defaultClientPhone);
   const [staffName, setStaffName] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [hour, setHour] = useState("14:00");
+  const [date, setDate] = useState(() => defaultDate || new Date().toISOString().split("T")[0]);
+  const [hour, setHour] = useState(() => defaultHour || "14:00");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultDate) setDate(defaultDate);
+      if (defaultHour) setHour(defaultHour);
+      if (defaultPropertyId) setPropertyId(defaultPropertyId);
+      if (defaultClientName) setClientName(defaultClientName);
+      if (defaultClientPhone) setClientPhone(defaultClientPhone);
+    }
+  }, [isOpen, defaultDate, defaultHour, defaultPropertyId, defaultClientName, defaultClientPhone]);
 
   if (!isOpen) return null;
 

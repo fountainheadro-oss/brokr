@@ -164,7 +164,7 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                 <div className="space-y-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                      <div className="w-1.5 h-6 bg-[--color-brand-navy] rounded-full" />
                       <h3 className="text-[16px] font-bold text-gray-900">Proprietar</h3>
                     </div>
                     <motion.button 
@@ -173,7 +173,7 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                       className="w-10 h-10 flex items-center justify-center bg-white rounded-full cursor-pointer hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm"
                       title="Adaugă Proprietar"
                     >
-                      <Plus size={20} strokeWidth={2.5} className="text-[rgb(51,51,51)]" />
+                      <Plus size={20} strokeWidth={2.5} className="text-[--color-brand-navy]" />
                     </motion.button>
                   </div>
 
@@ -198,10 +198,10 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                             href={formatWhatsAppLink(lead.ownerPhone)} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-[14px] font-bold text-blue-600 hover:underline ml-2 flex items-center gap-1.5"
+                            className="text-[14px] font-bold text-[--color-brand-gold] hover:underline ml-2 flex items-center gap-1.5"
                           >
                             {lead.ownerPhone}
-                            <MessageCircle size={14} className="text-green-500" />
+                            <MessageCircle size={14} className="text-emerald-500" />
                           </a>
                         </div>
                       </div>
@@ -216,7 +216,7 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                               onContactClick(contact);
                               onClose();
                             }}
-                            className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-[16px] hover:border-blue-200 transition-all cursor-pointer group"
+                            className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-[16px] hover:border-[--color-brand-gold-border] transition-all cursor-pointer group"
                           >
                             <span className="text-[14px] font-bold text-gray-700">{contact.firstName} {contact.lastName}</span>
                             <div className="flex items-center gap-2">
@@ -225,10 +225,10 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="text-[14px] font-medium text-blue-500 hover:underline flex items-center gap-1.5"
+                                className="text-[14px] font-medium text-[--color-brand-gold] hover:underline flex items-center gap-1.5"
                               >
                                 {contact.phone}
-                                <MessageCircle size={14} className="text-green-500" />
+                                <MessageCircle size={14} className="text-emerald-500" />
                               </a>
                               <button 
                                 onClick={async (e) => {
@@ -257,7 +257,7 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                 <div className="space-y-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-6 bg-green-500 rounded-full" />
+                      <div className="w-1.5 h-6 bg-[--color-brand-gold] rounded-full" />
                       <h3 className="text-[16px] font-bold text-gray-900">Contacte interesate</h3>
                     </div>
                     <motion.button 
@@ -266,7 +266,7 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                       className="w-10 h-10 flex items-center justify-center bg-white rounded-full cursor-pointer hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm"
                       title="Adaugă Client"
                     >
-                      <Plus size={20} strokeWidth={2.5} className="text-[rgb(51,51,51)]" />
+                      <Plus size={20} strokeWidth={2.5} className="text-[--color-brand-navy]" />
                     </motion.button>
                   </div>
 
@@ -279,13 +279,13 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                             onContactClick(contact);
                             onClose();
                           }}
-                          className="bg-white border border-gray-100 hover:border-green-200 p-5 rounded-[16px] transition-all cursor-pointer group shadow-sm"
+                          className="bg-white border border-gray-100 hover:border-[--color-brand-gold-border] p-5 rounded-[16px] transition-all cursor-pointer group shadow-sm"
                         >
                           <div className="flex justify-between items-start mb-3">
                              <div className="flex flex-col">
                                <span className="text-[16px] font-bold text-gray-900">{contact.firstName} {contact.lastName}</span>
                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wider inline-block w-fit mt-1 ${
-                                 contact.type === "Buyer" ? "bg-green-50 text-green-600" : "bg-[#BE9662]/10 text-[#051D35] border border-[#BE9662]/30"
+                                 contact.type === "Buyer" ? "badge-brand-navy" : "badge-brand-gold"
                                }`}>
                                  {contact.type}
                                </span>
@@ -313,10 +313,10 @@ export const PropertyQuickViewModal: React.FC<PropertyQuickViewModalProps> = ({
                                target="_blank"
                                rel="noopener noreferrer"
                                onClick={(e) => e.stopPropagation()}
-                               className="text-[14px] font-medium text-blue-500 hover:underline flex items-center gap-1.5"
+                               className="text-[14px] font-medium text-[--color-brand-gold] hover:underline flex items-center gap-1.5"
                              >
                                {contact.phone}
-                               <MessageCircle size={14} className="text-green-500" />
+                               <MessageCircle size={14} className="text-emerald-500" />
                              </a>
                           </div>
                         </div>

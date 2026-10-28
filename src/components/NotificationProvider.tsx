@@ -318,24 +318,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           {inAppToasts.map((toast) => (
             <motion.div
               key={toast.id}
-              initial={{ opacity: 0, y: 30, scale: 0.9 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-              className="pointer-events-auto bg-[#051D35] border border-[#0d3459] text-white p-4 rounded-xl shadow-2xl flex items-start gap-3 relative overflow-hidden"
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+              className="pointer-events-auto bg-white border border-gray-200 text-gray-900 p-3.5 rounded-lg shadow-xl flex items-start gap-3 relative overflow-hidden"
             >
-              <div className="w-9 h-9 shrink-0 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+              <div className="w-8 h-8 shrink-0 rounded-lg bg-[#051D35]/5 border border-[#051D35]/15 flex items-center justify-center text-[#BE9662] mt-0.5">
                 <Sparkles size={16} />
               </div>
               <div className="flex-1 min-w-0 pr-4">
-                <h4 className="text-xs font-black uppercase tracking-wider text-orange-400">Notificare Curentă</h4>
-                <p className="text-sm font-extrabold text-white mt-0.5 leading-snug">{toast.title}</p>
-                <p className="text-xs text-slate-300 mt-1 font-medium leading-relaxed">{toast.body}</p>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#BE9662]">Notificare Nouă</h4>
+                <p className="text-xs font-bold text-gray-900 mt-0.5 leading-snug">{toast.title}</p>
+                <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">{toast.body}</p>
               </div>
               <button
                 onClick={() => setInAppToasts((prev) => prev.filter(t => t.id !== toast.id))}
-                className="absolute top-2 right-2 text-slate-400 hover:text-white cursor-pointer"
+                className="w-6 h-6 rounded-md hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900 cursor-pointer transition-colors"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
             </motion.div>
           ))}
@@ -348,7 +348,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           <div className="fixed inset-0 z-[490] overflow-y-auto" id="notification-preferences-overlay">
             {/* Backdrop overlay */}
             <div 
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
               onClick={closeSettings}
             />
 
@@ -357,31 +357,31 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-gray-100 flex flex-col font-sans text-gray-900"
+                className="relative w-full max-w-lg rounded-lg bg-white p-5 shadow-2xl border border-gray-200 flex flex-col font-sans text-gray-900"
               >
                 {/* Header configuration */}
-                <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
+                <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 mb-4">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl bg-orange-50 text-[--color-accent] flex items-center justify-center">
-                      <Bell size={20} className="animate-pulse" />
+                    <div className="w-8 h-8 rounded-lg bg-[#051D35]/5 border border-[#051D35]/15 text-[#051D35] flex items-center justify-center">
+                      <Bell size={16} className="text-[#BE9662]" />
                     </div>
                     <div>
-                      <h3 className="text-base font-extrabold text-gray-950">Setări Alerte Push</h3>
-                      <p className="text-[11px] text-gray-400 font-medium leading-none">Notificări native la nivel de sistem operativ (PWA)</p>
+                      <h3 className="text-sm font-bold text-gray-900">Setări Alerte Push</h3>
+                      <p className="text-[11px] text-gray-500 font-medium leading-none mt-0.5">Notificări native la nivel de sistem operativ (PWA)</p>
                     </div>
                   </div>
                   <button 
                     onClick={closeSettings}
-                    className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors cursor-pointer"
+                    className="w-7 h-7 rounded-md bg-white hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors cursor-pointer"
                   >
-                    <X size={16} />
+                    <X size={15} />
                   </button>
                 </div>
 
                 {/* Main panel body */}
                 <div className="space-y-4">
                   {/* Status checklist section */}
-                  <div className="p-3.5 bg-gray-50 rounded-2xl space-y-2.5 border border-gray-100">
+                  <div className="p-3 bg-gray-50 rounded-md space-y-2 border border-gray-200">
                     <span className="block text-[10px] font-black uppercase text-gray-400 tracking-wider">Stare Conexiune Sistemă</span>
                     
                     <div className="flex items-center justify-between text-xs">
@@ -397,7 +397,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                       ) : (
                         <button
                           onClick={requestSystemPermission}
-                          className="px-3 py-1 font-bold text-[--color-accent] bg-orange-50 hover:bg-orange-100 rounded-lg cursor-pointer transition-colors"
+                          className="px-3 py-1 font-bold text-[--color-brand-navy] bg-[--color-brand-gold-light] hover:bg-[--color-brand-gold-border] rounded-lg cursor-pointer transition-colors"
                         >
                           Solicită Permisiune
                         </button>
@@ -407,7 +407,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     <div className="flex items-center justify-between text-xs border-t border-gray-200/50 pt-2">
                       <span className="font-semibold text-gray-600 flex items-center gap-1">Sincronizare Push FCM:</span>
                       {fcmToken ? (
-                        <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span className="font-black text-[--color-brand-navy] bg-[--color-brand-gold-light] border border-[--color-brand-gold-border] px-2 py-0.5 rounded-md flex items-center gap-1">
                           <Check size={12} strokeWidth={3} /> Sincronizat
                         </span>
                       ) : registrationError ? (
@@ -432,8 +432,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
                   {/* VAPID/Iframe status warning */}
                   {!fcmToken && !registrationError && (
-                    <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex gap-2 text-[11px] text-blue-800 leading-normal">
-                      <Info size={16} className="shrink-0 text-blue-500 mt-0.5" />
+                    <div className="p-3 bg-[--color-brand-gold-light]/30 border border-[--color-brand-gold-border] rounded-xl flex gap-2 text-[11px] text-gray-700 leading-normal">
+                      <Info size={16} className="shrink-0 text-[--color-brand-gold] mt-0.5" />
                       <div>
                         Notă: În interiorul iframe-urilor sandbox test-studio sau în modurile private, Service Workers pot fi blocați de securitatea browserului. Utilizați **Simulatorul Native** de mai jos pentru teste de validare.
                       </div>

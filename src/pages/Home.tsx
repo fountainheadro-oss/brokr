@@ -7,7 +7,7 @@ import { PersonalView } from "../components/PersonalView";
 import { AddLeadModal } from "../components/AddLeadModal";
 import { LeadList } from "../components/LeadList";
 import { LeadCard } from "../components/LeadCard";
-import { leadsService, Lead, LeadStatus } from "../services/leadsService";
+import { leadsService, Lead, LeadStatus, CERERI_STATUSES, isCerereLead } from "../services/leadsService";
 import { contactsService, Contact } from "../services/contactsService";
 import { personalService, PersonalMember } from "../services/personalService";
 import { viewingsService, Viewing } from "../services/viewingsService";
@@ -20,6 +20,7 @@ import { AddActivityModal } from "../components/AddActivityModal";
 import { AddTourModal } from "../components/AddTourModal";
 import { PropertyQuickViewModal } from "../components/PropertyQuickViewModal";
 import { NotificationsModal } from "../components/NotificationsModal";
+import { CalendarDrawer } from "../components/CalendarDrawer";
 import { ExtractionRulesModal } from "../components/ExtractionRulesModal";
 import { notificationsService, Notification as AppNotification } from "../services/notificationsService";
 import { motion, AnimatePresence } from "motion/react";
@@ -60,7 +61,11 @@ import {
   MessageSquare,
   Filter,
   Share2,
-  ExternalLink
+  ExternalLink,
+  Inbox,
+  Building2,
+  ClipboardList,
+  SlidersHorizontal
 } from "lucide-react";
 import { getPublicShareUrl } from "../utils/shareUtils";
 import { auth } from "../lib/firebase";
@@ -72,17 +77,26 @@ import { NevalidataUrlList } from "../components/NevalidataUrlList";
 import { NevalidataDetailsModal } from "../components/NevalidataDetailsModal";
 import { CalificataDetailsModal } from "../components/CalificataDetailsModal";
 
-const TABS: LeadStatus[] = ["Nevalidata", "Calificata", "Activa", "AreInteres", "InNegociere", "Finalizata", "Arhiva", "Sterse"];
+const TABS: LeadStatus[] = ["Nevalidata", "Calificata", "Activa", "Noua", "Calificare", "Matching", "Vizionare", "Ofertare", "Antecontract", "Contract", "InNegociere", "Finalizata", "Arhiva", "Sterse"];
 
-const STATUS_LABELS: Record<LeadStatus, string> = {
+const CERERI_TABS: LeadStatus[] = ["Noua", "Calificare", "Matching", "Vizionare", "Ofertare", "Antecontract", "Contract"];
+
+const STATUS_LABELS: Record<string, string> = {
   "Nevalidata": "Nevalidate",
   "Calificata": "Calificate",
   "Activa": "Active pe piață",
-  "AreInteres": "Au Interes",
-  "InNegociere": "In Negociere",
+  "AreInteres": "Nouă",
+  "InNegociere": "În Negociere",
   "Finalizata": "Finalizate",
   "Arhiva": "Arhivă",
-  "Sterse": "Șterse"
+  "Sterse": "Șterse",
+  "Noua": "Nouă",
+  "Calificare": "Calificare",
+  "Matching": "Matching",
+  "Vizionare": "Vizionare",
+  "Ofertare": "Ofertare",
+  "Antecontract": "Antecontract",
+  "Contract": "Contract"
 };
 
 type SortOption = 'newest' | 'oldest' | 'expensive' | 'cheap';
@@ -267,7 +281,7 @@ const CellCopyButton = ({ text, isImage = false, url = "", isRowDownload = false
 };
 
 export const Home: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<LeadStatus>("Nevalidata");
+  const [activeTab, setActiveTab] = useState<LeadStatus>("Activa");
   const [lastVisitedTimes, setLastVisitedTimes] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('lastVisited_tabs');
@@ -287,22 +301,11 @@ export const Home: React.FC = () => {
     if (normalized === 'Lead-uri') {
       setActiveTab('Nevalidata');
     } else if (normalized === 'Cereri') {
-      setActiveTab('AreInteres');
+      setActiveTab('Noua');
     } else if (normalized === 'Proprietăți') {
       setActiveTab('Activa');
     }
   };
-
-  useEffect(() => {
-    if (activeSidebarItem === 'Clienți' || activeSidebarItem === 'Contacte' || activeSidebarItem === 'Personal') return;
-    if (activeTab === 'Nevalidata' || activeTab === 'Calificata') {
-      setActiveSidebarItem('Lead-uri');
-    } else if (activeTab === 'AreInteres') {
-      setActiveSidebarItem('Cereri');
-    } else {
-      setActiveSidebarItem('Proprietăți');
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     if (location.state && (location.state as any).sidebarNav) {
@@ -318,6 +321,62 @@ export const Home: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [personal, setPersonal] = useState<PersonalMember[]>([]);
+
+  // Compute live counts matching the sidebar definition
+  const counts = useMemo(() => {
+    const isCerere = (l: Lead) => isCerereLead(l);
+    const isLeadItem = (l: Lead) => l.status === 'Nevalidata' || l.status === 'Calificata';
+    const isPropItem = (l: Lead) => !isCerere(l) && !isLeadItem(l) && l.status !== 'Sterse';
+
+    return {
+      leads: leads.filter(isLeadItem).length,
+      cereri: leads.filter(isCerere).length,
+      proprietati: leads.filter(isPropItem).length,
+      clienti: contacts.length,
+      personal: personal.length
+    };
+  }, [leads, contacts, personal]);
+
+  // Specific tabs for each section
+  const sectionTabs = useMemo<LeadStatus[]>(() => {
+    if (activeSidebarItem === 'Lead-uri') {
+      return ['Nevalidata', 'Calificata'];
+    }
+    if (activeSidebarItem === 'Cereri') {
+      return CERERI_TABS;
+    }
+    // Default to Proprietăți
+    return ['Activa', 'InNegociere', 'Finalizata', 'Arhiva', 'Sterse'];
+  }, [activeSidebarItem]);
+
+  // Section title, description and icon metadata
+  const sectionHeaderInfo = useMemo(() => {
+    if (activeSidebarItem === 'Lead-uri') {
+      return {
+        title: 'Lead-uri',
+        count: counts.leads,
+        description: 'Oportunități noi preluate din piață, link-uri nevalidate și proprietăți calificate',
+        searchPlaceholder: 'Caută în lead-uri (titlu, URL, ID, preț)...',
+        icon: <Inbox size={16} className="text-[#BE9662]" />
+      };
+    }
+    if (activeSidebarItem === 'Cereri') {
+      return {
+        title: 'Cereri',
+        count: counts.cereri,
+        description: 'Cereri active de la clienți interesați de cumpărare sau închiriere',
+        searchPlaceholder: 'Caută cereri după client, zonă, preferințe...',
+        icon: <ClipboardList size={16} className="text-[#BE9662]" />
+      };
+    }
+    return {
+      title: 'Proprietăți',
+      count: counts.proprietati,
+      description: 'Portofoliul complet de proprietăți active, în negociere și finalizate',
+      searchPlaceholder: 'Caută proprietăți după titlu, zonă, ID (#P...), preț...',
+      icon: <Building2 size={16} className="text-[#BE9662]" />
+    };
+  }, [activeSidebarItem, counts]);
   const [viewings, setViewings] = useState<Viewing[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCerereModalOpen, setIsCerereModalOpen] = useState(false);
@@ -325,6 +384,8 @@ export const Home: React.FC = () => {
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
+  const [activityDefaultDate, setActivityDefaultDate] = useState("");
+  const [activityDefaultHour, setActivityDefaultHour] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isViewingModalOpen, setIsViewingModalOpen] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -348,12 +409,19 @@ export const Home: React.FC = () => {
   const [editedCategoria, setEditedCategoria] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isExtractionRulesOpen, setIsExtractionRulesOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [copiedDomain, setCopiedDomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (location.search.includes('calendar=true')) {
+      setIsCalendarOpen(true);
+    }
+  }, [location.search]);
 
   const handleCopyDomain = async (domain: string) => {
     try {
@@ -780,7 +848,21 @@ export const Home: React.FC = () => {
 
   const groupedLeads = React.useMemo(() => {
     const filtered = leads
-      .filter(lead => lead.status === activeTab)
+      .filter(lead => {
+        if (activeSidebarItem === 'Cereri') {
+          if (!isCerereLead(lead)) return false;
+          if (activeTab === 'Noua') {
+            return lead.status === 'Noua' || lead.status === 'AreInteres';
+          }
+          return lead.status === activeTab;
+        }
+        if (activeSidebarItem === 'Lead-uri') {
+          return lead.status === activeTab;
+        }
+        // Proprietăți: exclude cereri from properties
+        if (isCerereLead(lead)) return false;
+        return lead.status === activeTab;
+      })
       .filter(lead => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase().trim();
@@ -792,7 +874,8 @@ export const Home: React.FC = () => {
         const idMatch = (lead.propertyId || lead.id || "").toLowerCase().includes(q);
         const catMatch = (lead.categoria || "").toLowerCase().includes(q);
         const notesMatch = (lead.notes || "").toLowerCase().includes(q);
-        return titleMatch || zoneMatch || priceMatch || nameMatch || phoneMatch || idMatch || catMatch || notesMatch;
+        const urlMatch = (lead.url || "").toLowerCase().includes(q);
+        return titleMatch || zoneMatch || priceMatch || nameMatch || phoneMatch || idMatch || catMatch || notesMatch || urlMatch;
       })
       .filter(lead => {
         if (transactionFilter === 'Toate') return true;
@@ -866,7 +949,7 @@ export const Home: React.FC = () => {
     });
 
     return groups;
-  }, [leads, activeTab, sortOption, transactionFilter, categoryFilter, searchQuery]);
+  }, [leads, activeTab, activeSidebarItem, sortOption, transactionFilter, categoryFilter, searchQuery]);
 
   const handleLeadClick = React.useCallback((lead: Lead) => {
     if (lead.status === "Nevalidata") {
@@ -1033,159 +1116,132 @@ export const Home: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="h-screen bg-white flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-[#f44336]" />
+      <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center p-6 select-none">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center mb-4 shadow-2xs">
+            <span className="font-montserrat text-2xl font-black tracking-tight text-[#051D35]">
+              b<span className="text-[#BE9662]">.</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 mb-1">
+            <Loader2 size={15} className="animate-spin text-[#BE9662]" />
+            <span>Se inițializează brokr...</span>
+          </div>
+          <p className="text-[11px] text-gray-400 font-medium">Sistem CRM & Extracție Date Imobiliare</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center mb-10 border border-gray-50">
-           <Zap size={48} fill="currentColor" className="text-[--color-accent]" />
-        </div>
-        <div className="mb-10">
-          <span className="font-montserrat text-5xl font-extrabold tracking-tight text-gray-900">
-            brokr<span className="ml-[-1px]" style={{ color: "var(--color-accent)" }}>.</span>
-          </span>
-          <p className="mt-4 text-[--color-text-secondary] font-medium text-base max-w-xs mx-auto">Extracție de date imobiliare asistată de AI. Transformă URL-urile în date structurate.</p>
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={handleLogin}
-          className="w-full max-w-xs bg-[#000000] text-white hover:bg-[#333333] transition-colors rounded-full h-14 font-semibold flex items-center justify-center gap-3"
-        >
-          <span>Login cu Google</span>
-        </motion.button>
-
-        {loginError && (
-          <div className="mt-6 p-5 bg-red-50 border border-red-200 rounded-2xl text-left max-w-md mx-auto text-sm text-red-800">
-            {loginError.includes("auth/configuration-not-found") ? (
-              <>
-                <h3 className="font-bold text-red-900 mb-2">Eroare de configurare Firebase</h3>
-                <p className="mb-3 text-red-700">
-                  Eroarea <code className="bg-red-100 px-1 py-0.5 rounded font-mono font-semibold">auth/configuration-not-found</code> indică faptul că serviciul de <strong>Authentication</strong> și furnizorul <strong>Google Sign-In</strong> nu sunt activate în noul dvs. proiect Firebase <strong>brokr-42038</strong>.
-                </p>
-                <h4 className="font-semibold text-red-900 mb-1">Câțiva pași simpli de urmat:</h4>
-                <ol className="list-decimal pl-5 space-y-1.5 text-red-700">
-                  <li>
-                    Accesați direct:{" "}
-                    <a
-                      href="https://console.firebase.google.com/project/brokr-42038/authentication"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline font-semibold text-red-600 hover:text-red-950"
-                    >
-                      Consola Firebase Auth (brokr-42038)
-                    </a>
-                  </li>
-                  <li>
-                    Dacă este prima dată când accesați această secțiune, apăsați pe butonul albastru <strong>Get Started</strong> (sau <strong>Începeți</strong>).
-                  </li>
-                  <li>
-                    În tab-ul <strong>Sign-in method</strong>, apăsați pe <strong>Add new provider</strong> și selectați <strong>Google</strong>. Activați-l, introduceți opțiunile cerute (email de asistență, etc.) și apăsați pe <strong>Save</strong>.
-                  </li>
-                  <li>
-                    Reveniți în această fereastră și reîncercați autentificarea cu Google!
-                  </li>
-                </ol>
-              </>
-            ) : loginError.includes("auth/unauthorized-domain") ? (
-              <>
-                <h3 className="font-bold text-red-900 mb-2">Domeniu neautorizat (Unauthorized Domain)</h3>
-                <p className="mb-3 text-red-700">
-                  Eroarea <code className="bg-red-100 px-1 py-0.5 rounded font-mono font-semibold">auth/unauthorized-domain</code> apare deoarece domeniile în care rulează aplicația nu sunt încă înregistrate în lista de domenii de încredere a noului dvs. proiect Firebase.
-                </p>
-                <h4 className="font-semibold text-red-900 mb-1">Câțiva pași rapizi pentru rezolvare:</h4>
-                <ol className="list-decimal pl-5 space-y-2 text-red-700 mb-4">
-                  <li>
-                    Accesați direct tab-ul de setări:{" "}
-                    <a
-                      href="https://console.firebase.google.com/project/brokr-42038/authentication/settings"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline font-semibold text-red-600 hover:text-red-950"
-                    >
-                      Setări Firebase Auth &gt; Authorized domains
-                    </a>
-                  </li>
-                  <li>
-                    Mergeți la rândul <strong>Authorized domains</strong> (Domenii autorizate) și apăsați pe butonul <strong>Add domain</strong> (Adaugă domeniu).
-                  </li>
-                  <li>
-                    Copiați și adăugați rând pe rând următoarele domenii pentru a asigura funcționarea atât în mod de Dezvoltare (Dev), cât și când distribuiți (Shared) aplicația:
-                  </li>
-                </ol>
-                <div className="bg-white/90 p-3 rounded-xl border border-red-200/60 space-y-2 font-mono text-xs text-red-900 mb-4 select-all">
-                  <div className="flex justify-between items-center bg-gray-50/80 px-2.5 py-2 rounded-lg border border-gray-100 gap-2">
-                    <div className="flex flex-col text-left">
-                      <span className="font-semibold text-gray-800">{window.location.hostname}</span>
-                      <span className="text-[9px] text-gray-400 font-sans mt-0.5">Domeniu curent</span>
-                    </div>
-                    <button
-                      onClick={() => handleCopyDomain(window.location.hostname)}
-                      className="p-1.5 hover:bg-gray-200/80 rounded transition-colors flex items-center justify-center shrink-0"
-                      title="Copiază"
-                    >
-                      {copiedDomain === window.location.hostname ? (
-                        <Check size={14} className="text-green-600 font-bold" />
-                      ) : (
-                        <Copy size={13} className="text-gray-400 hover:text-gray-755" />
-                      )}
-                    </button>
-                  </div>
-                  {window.location.hostname.includes("ais-dev") && (
-                    <div className="flex justify-between items-center bg-gray-50/80 px-2.5 py-2 rounded-lg border border-gray-100 gap-2">
-                      <div className="flex flex-col text-left">
-                        <span className="font-semibold text-gray-800">{window.location.hostname.replace("ais-dev", "ais-pre")}</span>
-                        <span className="text-[9px] text-gray-400 font-sans mt-0.5">Domeniu distributie (Shared)</span>
-                      </div>
-                      <button
-                        onClick={() => handleCopyDomain(window.location.hostname.replace("ais-dev", "ais-pre"))}
-                        className="p-1.5 hover:bg-gray-200/80 rounded transition-colors flex items-center justify-center shrink-0"
-                        title="Copiază"
-                      >
-                        {copiedDomain === window.location.hostname.replace("ais-dev", "ais-pre") ? (
-                          <Check size={14} className="text-green-600 font-bold" />
-                        ) : (
-                          <Copy size={13} className="text-gray-400 hover:text-gray-755" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-                  {window.location.hostname.includes("ais-pre") && (
-                    <div className="flex justify-between items-center bg-gray-50/80 px-2.5 py-2 rounded-lg border border-gray-100 gap-2">
-                      <div className="flex flex-col text-left">
-                        <span className="font-semibold text-gray-800">{window.location.hostname.replace("ais-pre", "ais-dev")}</span>
-                        <span className="text-[9px] text-gray-400 font-sans mt-0.5">Domeniu dev</span>
-                      </div>
-                      <button
-                        onClick={() => handleCopyDomain(window.location.hostname.replace("ais-pre", "ais-dev"))}
-                        className="p-1.5 hover:bg-gray-200/80 rounded transition-colors flex items-center justify-center shrink-0"
-                        title="Copiază"
-                      >
-                        {copiedDomain === window.location.hostname.replace("ais-pre", "ais-dev") ? (
-                          <Check size={14} className="text-green-600 font-bold" />
-                        ) : (
-                          <Copy size={13} className="text-gray-400 hover:text-gray-755" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <p className="text-red-700 text-xs mt-2">
-                  💡 <em>După adăugarea domeniilor, reveniți în această pagină și reîncercați „Login cu Google”. Totul va rula impecabil direct pe noul dvs. proiect <strong>brokr</strong>!</em>
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="font-bold text-red-900 mb-1">Eroare la autentificare</h3>
-                <p className="text-red-700">{loginError}</p>
-              </>
-            )}
+      <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="w-full max-w-sm bg-white border border-gray-200 rounded-lg p-8 shadow-sm flex flex-col items-center text-center">
+          {/* Logo Badge */}
+          <div className="w-14 h-14 rounded-lg bg-[#051D35]/5 border border-[#051D35]/15 flex items-center justify-center mb-5 text-[#BE9662] shadow-2xs">
+            <Zap size={28} fill="currentColor" />
           </div>
-        )}
+
+          {/* Heading */}
+          <div className="mb-6">
+            <h1 className="font-montserrat text-3xl font-extrabold tracking-tight text-gray-900">
+              brokr<span className="ml-[-1px] text-[#BE9662]">.</span>
+            </h1>
+            <p className="mt-2 text-xs text-gray-500 font-medium max-w-xs mx-auto leading-relaxed">
+              Extracție de date imobiliare asistată de AI și gestiune de portofoliu.
+            </p>
+          </div>
+
+          {/* Login Button */}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={handleLogin}
+            className="w-full h-10 bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors rounded-md font-semibold text-xs flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>Autentificare cu Google</span>
+          </motion.button>
+
+          {/* Login Error / Configuration Assistant */}
+          {loginError && (
+            <div className="mt-6 p-4 bg-red-50/70 border border-red-200 rounded-lg text-left w-full text-xs text-red-800">
+              {loginError.includes("auth/configuration-not-found") ? (
+                <>
+                  <h3 className="font-bold text-red-900 mb-1.5 text-xs">Eroare de configurare Firebase</h3>
+                  <p className="mb-2 text-red-700 leading-relaxed text-[11px]">
+                    Furnizorul <strong>Google Sign-In</strong> nu este activat în proiectul Firebase <strong>brokr-42038</strong>.
+                  </p>
+                  <ol className="list-decimal pl-4 space-y-1 text-red-700 text-[11px]">
+                    <li>
+                      Accesați:{" "}
+                      <a
+                        href="https://console.firebase.google.com/project/brokr-42038/authentication"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-semibold text-red-600 hover:text-red-950"
+                      >
+                        Consola Firebase Auth
+                      </a>
+                    </li>
+                    <li>Activați furnizorul <strong>Google</strong> în tab-ul Sign-in method.</li>
+                    <li>Reveniți și reîncercați autentificarea.</li>
+                  </ol>
+                </>
+              ) : loginError.includes("auth/unauthorized-domain") ? (
+                <>
+                  <h3 className="font-bold text-red-900 mb-1 text-xs">Domeniu neautorizat (Unauthorized Domain)</h3>
+                  <p className="mb-2 text-red-700 text-[11px] leading-relaxed">
+                    Adăugați domeniul curent în lista <strong>Authorized domains</strong> din Firebase:
+                  </p>
+                  <div className="space-y-1.5 font-mono text-[11px] text-red-900 mb-2">
+                    <div className="flex justify-between items-center bg-white px-2 py-1.5 rounded-md border border-gray-200">
+                      <span className="font-semibold truncate">{window.location.hostname}</span>
+                      <button
+                        onClick={() => handleCopyDomain(window.location.hostname)}
+                        className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-900"
+                        title="Copiază"
+                      >
+                        {copiedDomain === window.location.hostname ? (
+                          <Check size={13} className="text-emerald-600 font-bold" />
+                        ) : (
+                          <Copy size={13} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-bold text-red-900 mb-1 text-xs">Eroare la autentificare</h3>
+                  <p className="text-red-700 text-[11px]">{loginError}</p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Card footer */}
+          <div className="mt-6 pt-5 border-t border-gray-100 w-full flex items-center justify-between text-[11px] text-gray-400">
+            <span>Securizat prin Google Identity</span>
+            <span className="font-mono text-[10px]">v2.4</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1448,6 +1504,7 @@ export const Home: React.FC = () => {
               onAddDocumentClick={() => setIsDocumentModalOpen(true)}
               onAddActivityClick={() => setIsActivityModalOpen(true)}
               onAddTourClick={() => setIsActivityModalOpen(true)}
+              onCalendarClick={() => setIsCalendarOpen(true)}
               onNotificationsClick={() => setIsNotificationsOpen(true)} 
               onExtractionRulesClick={() => setIsExtractionRulesOpen(true)}
               onSelectLead={handleLeadClick}
@@ -1479,169 +1536,186 @@ export const Home: React.FC = () => {
               />
             ) : (
               <>
-                {/* Tabs & Filters */}
-                <div className="bg-white border-b border-gray-200 shrink-0 h-[40px] overflow-hidden">
-              <div className="px-4 w-full h-full">
-                <div className="flex items-center justify-between overflow-x-auto no-scrollbar overflow-y-hidden h-full">
-                  <div className="flex gap-5 h-full">
-                    {TABS.slice(0, 6).map(tab => {
-                      const tabCount = leads.filter(l => l.status === tab).length;
-                      const hasNew = leads.some(lead => {
-                        if (lead.status !== tab) return false;
-                        const itemTime = getTimestampMs(lead.lastMovedAt) || getTimestampMs(lead.updatedAt) || getTimestampMs(lead.createdAt);
-                        return tab !== activeTab && itemTime > (lastVisitedTimes[tab] || 0);
-                      });
-                      return (
-                        <button
-                          key={tab}
-                          onClick={() => setActiveTab(tab)}
-                          className={`relative px-1 h-full flex items-center text-[12px] font-medium transition-all whitespace-nowrap ${
-                            activeTab === tab 
-                            ? "text-[#051D35] font-semibold" 
-                            : "text-gray-500 hover:text-gray-800"
-                          }`}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            {STATUS_LABELS[tab]}
-                            <span className="text-[11px] font-mono text-gray-400">({tabCount})</span>
-                            {hasNew && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#BE9662] animate-pulse" />
-                            )}
-                          </span>
-                          {activeTab === tab && (
-                            <motion.div 
-                              layoutId="activeTab"
-                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#051D35]"
-                              initial={false}
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-5 ml-6 h-full">
-                    {TABS.slice(6).map(tab => {
-                      const tabCount = leads.filter(l => l.status === tab).length;
-                      const hasNew = leads.some(lead => {
-                        if (lead.status !== tab) return false;
-                        const itemTime = getTimestampMs(lead.lastMovedAt) || getTimestampMs(lead.updatedAt) || getTimestampMs(lead.createdAt);
-                        return tab !== activeTab && itemTime > (lastVisitedTimes[tab] || 0);
-                      });
-                      return (
-                        <button
-                          key={tab}
-                          onClick={() => setActiveTab(tab)}
-                          className={`relative px-1 h-full flex items-center text-[12px] font-medium transition-all whitespace-nowrap ${
-                            activeTab === tab 
-                            ? "text-[#051D35] font-semibold" 
-                            : "text-gray-500 hover:text-gray-800"
-                          }`}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            {STATUS_LABELS[tab]}
-                            <span className="text-[11px] font-mono text-gray-400">({tabCount})</span>
-                            {hasNew && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#BE9662] animate-pulse" />
-                            )}
-                          </span>
-                          {activeTab === tab && (
-                            <motion.div 
-                              layoutId="activeTab"
-                              className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#051D35]"
-                              initial={false}
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Filters Sub-header */}
-            <div className="bg-gray-50/70 border-b border-gray-200 shrink-0 h-[42px] flex items-center">
-              <div className="px-4 flex-1 flex items-center justify-between relative">
-                {/* Left Side: Transaction */}
-                <div className="flex items-center gap-3">
+                {/* Top Header / Action Bar (matching Clienți style) */}
+                <div className="bg-white border-b border-gray-200 shrink-0 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    {(['Toate', 'Vânzare', 'Închiriere'] as TransactionFilter[]).map((type) => (
-                      <label
-                        key={type}
-                        className="flex items-center gap-1.5 cursor-pointer group"
-                      >
-                        <div className="relative flex items-center justify-center">
-                          <input
-                            type="radio"
-                            name="transactionType"
-                            checked={transactionFilter === type}
-                            onChange={() => setTransactionFilter(type)}
-                            className="sr-only"
-                          />
-                          <div className={`w-3.5 h-3.5 rounded-full border transition-all ${
-                            transactionFilter === type
-                            ? "border-[#051D35] bg-[#051D35]"
-                            : "border-gray-300 group-hover:border-gray-400 bg-white"
-                          }`} />
-                          {transactionFilter === type && (
-                            <div className="absolute w-1.5 h-1.5 rounded-full bg-white" />
-                          )}
-                        </div>
-                        <span className={`text-[12px] transition-colors ${
-                          transactionFilter === type
-                          ? "text-[#051D35] font-medium"
-                          : "text-gray-500 group-hover:text-gray-700"
-                        }`}>
-                          {type}
+                    <div className="w-8 h-8 rounded-lg bg-[#051D35]/5 border border-[#051D35]/10 flex items-center justify-center text-[#051D35]">
+                      {sectionHeaderInfo.icon}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-[15px] font-semibold tracking-tight text-[#051D35]">
+                          {sectionHeaderInfo.title}
+                        </h2>
+                        <span className="text-[11px] font-mono font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                          {sectionHeaderInfo.count} total
                         </span>
-                      </label>
-                    ))}
+                      </div>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        {sectionHeaderInfo.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {/* In-page Quick Search */}
+                    <div className="relative w-56 sm:w-64">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={sectionHeaderInfo.searchPlaceholder}
+                        className="w-full h-8 pl-9 pr-7 text-xs bg-gray-50 border border-gray-200 rounded-md placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-gray-400 transition-colors font-sans"
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          title="Șterge căutarea"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Action buttons per section */}
+                    {activeSidebarItem === 'Lead-uri' && (
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(true)}
+                        className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-md transition-colors cursor-pointer shrink-0 shadow-xs"
+                      >
+                        <Plus size={14} className="text-[#BE9662]" />
+                        <span>Adaugă Lead</span>
+                      </button>
+                    )}
+
+                    {activeSidebarItem === 'Proprietăți' && (
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(true)}
+                        className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-md transition-colors cursor-pointer shrink-0 shadow-xs"
+                      >
+                        <Plus size={14} className="text-[#BE9662]" />
+                        <span>Adaugă Proprietate</span>
+                      </button>
+                    )}
+
+                    {activeSidebarItem === 'Cereri' && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCerereModalOpen(true)}
+                        className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-md transition-colors cursor-pointer shrink-0 shadow-xs"
+                      >
+                        <Plus size={14} className="text-[#BE9662]" />
+                        <span>Adaugă Cerere</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Middle: Count */}
-                <div className="hidden md:flex items-center gap-1.5 text-gray-400 text-[11px] font-mono absolute left-1/2 -translate-x-1/2">
-                  <span className="w-1 h-1 rounded-full bg-gray-300" />
-                  <span>{Object.values(groupedLeads).flat().length} proprietăți</span>
-                </div>
+                {/* Sub-header Filter Tabs / Menu (same style as Clienți) */}
+                <div className="bg-white border-b border-gray-200 shrink-0 px-6 h-[40px] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
+                  {/* Left: Filter Tabs with counts */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {sectionTabs.map((tab) => {
+                      const tabCount = leads.filter(l => {
+                        if (activeSidebarItem === 'Cereri') {
+                          if (!isCerereLead(l)) return false;
+                          if (tab === 'Noua') return l.status === 'Noua' || l.status === 'AreInteres';
+                          return l.status === tab;
+                        }
+                        if (activeSidebarItem === 'Lead-uri') {
+                          return l.status === tab;
+                        }
+                        // Proprietăți
+                        if (isCerereLead(l)) return false;
+                        return l.status === tab;
+                      }).length;
+                      const hasNew = leads.some(lead => {
+                        const isMatch = activeSidebarItem === 'Cereri'
+                          ? (isCerereLead(lead) && (tab === 'Noua' ? lead.status === 'Noua' || lead.status === 'AreInteres' : lead.status === tab))
+                          : (activeSidebarItem === 'Proprietăți' ? (!isCerereLead(lead) && lead.status === tab) : lead.status === tab);
+                        if (!isMatch) return false;
+                        const itemTime = getTimestampMs(lead.lastMovedAt) || getTimestampMs(lead.updatedAt) || getTimestampMs(lead.createdAt);
+                        return tab !== activeTab && itemTime > (lastVisitedTimes[tab] || 0);
+                      });
+                      const isSelected = activeTab === tab;
 
-                {/* Right Side: Category & Sort */}
-                <div className="flex items-center gap-2">
-                  {/* Category Filter */}
-                  <div className="relative w-40">
-                    <select
-                      value={categoryFilter}
-                      onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="w-full h-[30px] bg-white border border-gray-200 rounded-md px-2.5 pr-7 text-[12px] font-normal text-gray-800 appearance-none focus:outline-none focus:border-gray-400 transition-all cursor-pointer hover:border-gray-300"
-                    >
-                      <option value="Toate">Toate</option>
-                      {CATEGORIA_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
+                      return (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`h-7 px-2.5 flex items-center gap-1.5 text-xs rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                            isSelected
+                              ? "bg-[#051D35] text-white font-medium shadow-xs"
+                              : "text-gray-600 hover:text-[#051D35] hover:bg-gray-100"
+                          }`}
+                        >
+                          <span>{STATUS_LABELS[tab]}</span>
+                          <span className={`text-[10px] font-mono px-1 rounded ${
+                            isSelected ? "bg-white/15 text-[#BE9662]" : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {tabCount}
+                          </span>
+                          {hasNew && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#BE9662] animate-pulse ml-0.5" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right: Transaction pills, Category & Sort dropdowns */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-md">
+                      {(['Toate', 'Vânzare', 'Închiriere'] as TransactionFilter[]).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setTransactionFilter(type)}
+                          className={`h-6 px-2 text-[11px] font-medium rounded transition-all cursor-pointer ${
+                            transactionFilter === type
+                              ? "bg-[#051D35] text-white shadow-xs"
+                              : "text-gray-600 hover:text-[#051D35] hover:bg-white/70"
+                          }`}
+                        >
+                          {type}
+                        </button>
                       ))}
-                    </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                      <ChevronDown size={14} />
                     </div>
-                  </div>
 
-                  <div className="relative w-36">
-                    <select
-                      value={sortOption}
-                      onChange={(e) => setSortOption(e.target.value as SortOption)}
-                      className="w-full h-[30px] bg-white border border-gray-200 rounded-md px-2.5 pr-7 text-[12px] font-normal text-gray-800 appearance-none focus:outline-none focus:border-gray-400 transition-all cursor-pointer hover:border-gray-300"
-                    >
-                      <option value="newest">Cele mai noi</option>
-                      <option value="oldest">Cele mai vechi</option>
-                      <option value="expensive">Cele mai scumpe</option>
-                      <option value="cheap">Cele mai ieftine</option>
-                    </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                      <ChevronDown size={14} />
+                    <div className="relative">
+                      <select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="h-7 bg-gray-50 border border-gray-200 rounded-md pl-2.5 pr-6 text-xs text-gray-700 appearance-none focus:outline-none focus:bg-white focus:border-gray-400 transition-colors cursor-pointer"
+                      >
+                        <option value="Toate">Toate categoriile</option>
+                        {CATEGORIA_OPTIONS.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    <div className="relative">
+                      <select
+                        value={sortOption}
+                        onChange={(e) => setSortOption(e.target.value as SortOption)}
+                        className="h-7 bg-gray-50 border border-gray-200 rounded-md pl-2.5 pr-6 text-xs text-gray-700 appearance-none focus:outline-none focus:bg-white focus:border-gray-400 transition-colors cursor-pointer"
+                      >
+                        <option value="newest">Cele mai noi</option>
+                        <option value="oldest">Cele mai vechi</option>
+                        <option value="expensive">Cele mai scumpe</option>
+                        <option value="cheap">Cele mai ieftine</option>
+                      </select>
+                      <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
             {/* Content */}
             <div className="flex-1 overflow-hidden relative">
@@ -1748,24 +1822,86 @@ export const Home: React.FC = () => {
             className="fixed inset-0 bg-gray-50 z-[200] overflow-y-auto flex flex-col"
             onScroll={handleDetailsScroll}
           >
-            <div className="sticky top-0 bg-white border-b border-gray-200 h-[50px] min-h-[50px] max-h-[50px] shrink-0 box-border flex items-center px-4 gap-2.5 z-10">
-              <button 
-                onClick={handleCloseDetails}
-                className="w-7 h-7 flex items-center justify-center bg-white rounded-md cursor-pointer hover:bg-gray-50 transition-colors shrink-0 border border-gray-200"
-              >
-                <ChevronLeft size={16} className="text-gray-500 hover:text-gray-900" />
-              </button>
+            {/* Sticky Header Bar */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 h-[50px] min-h-[50px] max-h-[50px] shrink-0 box-border flex items-center justify-between px-4 gap-2.5 z-20">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <button 
+                  onClick={handleCloseDetails}
+                  className="w-8 h-8 flex items-center justify-center bg-white rounded-lg cursor-pointer hover:bg-gray-50 transition-colors shrink-0 border border-gray-200 shadow-xs"
+                  title="Înapoi la listă"
+                >
+                  <ChevronLeft size={16} className="text-gray-700 hover:text-gray-900" />
+                </button>
+
+                <div className="w-8 h-8 rounded-lg bg-[#051D35]/5 border border-[#051D35]/15 text-[#051D35] flex items-center justify-center shrink-0">
+                  <Building2 size={16} />
+                </div>
  
-              <div className="flex-1 min-w-0 pr-2">
-                <h2 className="text-[13px] font-semibold text-gray-900 truncate tracking-tight leading-tight mb-0.5">{selectedLead.title}</h2>
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-[11px] font-mono font-semibold text-gray-900">{selectedLead.price}</span>
-                  <span className="text-gray-300">·</span>
-                  <span className="text-[11px] text-gray-500 font-medium truncate">{selectedLead.ownerName}</span>
+                <div className="flex-1 min-w-0 pr-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-[13px] font-semibold text-gray-900 truncate tracking-tight leading-tight">
+                      {selectedLead.title}
+                    </h2>
+                    {selectedLead.propertyId && (
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-[#051D35]/5 text-[#051D35] border border-[#051D35]/15 shrink-0">
+                        #{selectedLead.propertyId}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-gray-100 text-gray-700 border border-gray-200 shrink-0">
+                      {STATUS_LABELS[selectedLead.status] || selectedLead.status}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-xs mt-0.5">
+                    <span className="text-[11px] font-mono font-bold text-gray-900">{selectedLead.price}</span>
+                    <span className="text-gray-300">·</span>
+                    <span className="text-[11px] text-gray-500 font-medium truncate">{selectedLead.zone || selectedLead.ownerName}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Share Link Button */}
+                <button
+                  onClick={async () => {
+                    const shareUrl = getPublicShareUrl(selectedLead.id!);
+                    try {
+                      await navigator.clipboard.writeText(shareUrl);
+                      toast.success("Linkul public al proprietății a fost copiat!");
+                    } catch {
+                      toast.success("Link: " + shareUrl);
+                    }
+                  }}
+                  className="h-8 px-2.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Copiază link public de prezentare"
+                >
+                  <Share2 size={13} className="text-[#BE9662]" />
+                  <span className="hidden sm:inline">Distribuie</span>
+                </button>
+
+                {/* External Source Link */}
+                {selectedLead.url && (
+                  <a
+                    href={selectedLead.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors"
+                    title="Deschide anunțul sursă"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+
+                {/* Add Activity Button */}
+                <button
+                  onClick={() => setIsActivityModalOpen(true)}
+                  className="h-8 px-3 rounded-md bg-[#051D35] hover:bg-[#0a2b4a] text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus size={13} className="text-[#BE9662]" />
+                  <span className="hidden sm:inline">Activitate</span>
+                </button>
+
+                {/* Trash/Delete Button */}
                 <button 
                   onClick={async () => {
                     if (selectedLead.status === 'Sterse') {
@@ -1776,7 +1912,7 @@ export const Home: React.FC = () => {
                       toast.success('Proprietate mutată în Șterse');
                     }
                   }}
-                  className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:text-red-600 transition-colors shrink-0"
+                  className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-red-600 hover:bg-gray-50 transition-colors shrink-0 cursor-pointer"
                   title={selectedLead.status === 'Sterse' ? "Ștergere Definitivă" : "Mută în Șterse"}
                 >
                   <Trash2 size={14} />
@@ -1785,7 +1921,7 @@ export const Home: React.FC = () => {
             </div>
 
             {/* Sticky Mobile Section Navigator */}
-            <div className="sticky top-[96px] lg:hidden z-20 bg-white/95 backdrop-blur-sm border-b border-gray-100 px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar scroll-smooth items-center">
+            <div className="sticky top-[50px] lg:hidden z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-2 flex gap-1.5 overflow-x-auto no-scrollbar scroll-smooth items-center">
               {activeSectionsList.map((sect) => {
                 const status = getCompletionState(sect.id);
                 const isSelected = activeSection === sect.id;
@@ -1793,283 +1929,263 @@ export const Home: React.FC = () => {
                   <button
                     key={sect.id}
                     onClick={() => scrollToSection(sect.id)}
-                    className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${
+                    className={`shrink-0 px-2.5 h-7 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                       isSelected
-                        ? "bg-[#051D35] text-white border-[#051D35]"
-                        : "bg-white text-gray-500 border-gray-100 hover:text-gray-900 hover:border-gray-200"
+                        ? "bg-[#051D35] text-white shadow-xs"
+                        : "bg-white text-gray-600 border border-gray-200 hover:text-gray-900 hover:bg-gray-50"
                     }`}
                   >
                     <span>{sect.label}</span>
                     {status === "complete" && (
-                      <span className="w-4 h-4 rounded-full bg-green-550 bg-green-500 text-white text-[9px] flex items-center justify-center font-black">✓</span>
+                      <span className="w-3.5 h-3.5 rounded bg-emerald-500 text-white text-[9px] flex items-center justify-center font-bold">✓</span>
                     )}
                     {status === "partial" && (
-                      <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center font-black">!</span>
+                      <span className="w-3.5 h-3.5 rounded bg-amber-500 text-white text-[9px] flex items-center justify-center font-bold">!</span>
                     )}
                   </button>
                 );
               })}
             </div>
 
-            <div className="p-5 flex-1 w-full max-w-none px-4 lg:px-12 mx-0">
-              <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-6 items-start h-full pb-10">
+            <div className="p-4 lg:p-6 flex-1 w-full max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_240px] gap-4 items-start pb-10">
                 
                 {/* Column 1: Left Persistent Sidebar */}
-                <div className="col-span-1 space-y-5 lg:sticky lg:top-[120px] lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto no-scrollbar order-3 lg:order-1">
+                <div className="col-span-1 space-y-4 lg:sticky lg:top-[70px] lg:max-h-[calc(100vh-90px)] lg:overflow-y-auto no-scrollbar order-3 lg:order-1">
                   
                   {/* ID Info Section */}
-                  <div id="identificare" className="bg-white p-5 rounded-[16px] border border-gray-100 shadow-sm space-y-5 scroll-mt-24">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-[16px] bg-[--color-accent]/10 flex items-center justify-center">
-                        <Hash size={20} className="text-[--color-accent]" />
-                      </div>
-                      <div>
-                        <h3 className="text-[15px] font-bold text-gray-900 leading-none">Identificare</h3>
-                        <p className="text-[11px] text-gray-500 font-medium tracking-tight mt-1">Status și Cod Proprietate</p>
-                      </div>
+                  <div id="identificare" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20">
+                    <div className="h-9 flex items-center justify-between px-3.5 bg-gray-50/80 border-b border-gray-200">
+                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">Identificare & Status</span>
+                      <Hash size={13} className="text-[#BE9662]" />
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="p-3.5 space-y-3">
                       <div className="flex flex-col gap-1">
-                        <span className="text-[11px] font-bold text-[--color-text-placeholder] uppercase tracking-wider">ID Proprietate</span>
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                          {isCerereLead(selectedLead) ? "ID Cerere" : "ID Proprietate"}
+                        </span>
                         <FormInput 
                           value={editedPropertyId}
                           onChange={setEditedPropertyId}
                           onBlur={handleSaveDetails}
-                          placeholder="Cod proprietate..."
+                          placeholder={isCerereLead(selectedLead) ? "Cod cerere (ex. R102)..." : "Cod proprietate (ex. P102)..."}
                         />
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <span className="text-[11px] font-bold text-[--color-text-placeholder] uppercase tracking-wider">Status Proprietate</span>
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                          {isCerereLead(selectedLead) ? "Status Cerere" : "Status Proprietate"}
+                        </span>
                         <div className="relative">
                           <select 
-                            value={selectedLead.status}
+                            value={selectedLead.status === 'AreInteres' ? 'Noua' : selectedLead.status}
                             onChange={(e) => updateStatus(selectedLead.id!, e.target.value as LeadStatus)}
-                            className="input-base w-full appearance-none pr-12 cursor-pointer"
+                            className="input-base w-full appearance-none pr-8 cursor-pointer h-8 text-xs rounded-md border border-gray-200 focus:border-[#051D35]"
                           >
-                            {TABS.map(status => (
-                              <option key={status} value={status}>{STATUS_LABELS[status]}</option>
+                            {(isCerereLead(selectedLead) 
+                              ? CERERI_TABS 
+                              : (selectedLead.status === 'Nevalidata' || selectedLead.status === 'Calificata' 
+                                ? (['Nevalidata', 'Calificata', 'Activa', 'Sterse'] as LeadStatus[])
+                                : (['Activa', 'InNegociere', 'Finalizata', 'Arhiva', 'Sterse'] as LeadStatus[]))
+                            ).map(status => (
+                              <option key={status} value={status}>{STATUS_LABELS[status] || status}</option>
                             ))}
                           </select>
-                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[--color-text-placeholder]">
-                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </div>
+                          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Contacte Alocate Section */}
-                  <div id="contactealocate" className="bg-white p-5 rounded-[16px] border border-gray-100 flex flex-col min-h-[356px] shadow-sm scroll-mt-24">
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-[--color-accent]/10 flex items-center justify-center">
-                          <Users size={20} className="text-[--color-accent]" />
-                        </div>
-                        <div>
-                          <h3 className="text-[15px] font-bold text-gray-900 leading-none">Contacte Alocate</h3>
-                          <p className="text-[11px] text-gray-500 font-medium tracking-tight mt-1">Proprietari și Clienți</p>
-                        </div>
-                      </div>
+                  <div id="contactealocate" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20 flex flex-col">
+                    <div className="h-9 flex items-center justify-between px-3.5 bg-gray-50/80 border-b border-gray-200">
+                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">
+                        Contacte ({contacts.filter(c => c.propertyId === selectedLead.id).length})
+                      </span>
                       <button 
                         onClick={() => setIsContactModalOpen(true)}
-                        className="w-8 h-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors text-gray-600"
+                        className="h-6 px-2 rounded bg-[#051D35] hover:bg-[#0a2b4a] text-white text-[10px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
                         title="Adaugă Contact"
                       >
-                        <Plus size={16} />
+                        <Plus size={11} className="text-[#BE9662]" />
+                        <span>Adaugă</span>
                       </button>
                     </div>
 
-                    {contacts.filter(c => c.propertyId === selectedLead.id).length > 0 ? (
-                      <div className="space-y-3 overflow-y-auto max-h-[300px] pr-1 custom-scrollbar">
-                        {contacts
-                          .filter(c => c.propertyId === selectedLead.id)
-                          .sort((a, b) => {
-                            const timeA = b.createdAt?.toMillis?.() || 0;
-                            const timeB = a.createdAt?.toMillis?.() || 0;
-                            return timeA - timeB;
-                          })
-                          .map((contact, idx) => (
-                          <motion.div
-                            key={contact.id || `${contact.firstName}-${contact.lastName}-${contact.phone}-${idx}`}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white hover:shadow-md p-3 rounded-[12px] transition-all border border-gray-100 hover:border-[--color-accent] group"
-                          >
-                            <div className="flex items-center justify-between gap-2">
+                    <div className="p-3">
+                      {contacts.filter(c => c.propertyId === selectedLead.id).length > 0 ? (
+                        <div className="space-y-2 overflow-y-auto max-h-[280px] pr-1 custom-scrollbar">
+                          {contacts
+                            .filter(c => c.propertyId === selectedLead.id)
+                            .sort((a, b) => {
+                              const timeA = b.createdAt?.toMillis?.() || 0;
+                              const timeB = a.createdAt?.toMillis?.() || 0;
+                              return timeA - timeB;
+                            })
+                            .map((contact, idx) => (
+                            <div
+                              key={contact.id || `${contact.firstName}-${contact.lastName}-${contact.phone}-${idx}`}
+                              className="p-2.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50/70 transition-all flex items-center justify-between gap-2"
+                            >
                               <div className="min-w-0 flex-1">
-                                <h4 className="text-[13px] font-bold text-gray-900 leading-tight truncate">
+                                <h4 className="text-xs font-semibold text-gray-900 leading-tight truncate">
                                   {contact.firstName} {contact.lastName}
                                 </h4>
-                                <div className="mt-1">
-                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${
                                     contact.type === "Owner" 
-                                    ? "bg-blue-50 text-blue-600" 
-                                    : contact.type === "Buyer" 
-                                    ? "bg-green-50 text-green-600" 
-                                    : "bg-[#BE9662]/10 text-[#051D35] border border-[#BE9662]/30"
+                                      ? "bg-[#051D35]/5 text-[#051D35] border-[#051D35]/15" 
+                                      : "bg-[#BE9662]/10 text-[#051D35] border-[#BE9662]/30"
                                   }`}>
                                     {contact.type}
                                   </span>
+                                  <span className="text-[10px] font-mono text-gray-500 truncate">{contact.phone}</span>
                                 </div>
                               </div>
-                              <div className="flex gap-1 shrink-0">
+
+                              <div className="flex items-center gap-1 shrink-0">
                                 <a 
                                   href={`https://wa.me/${contact.phone.replace(/[^0-9]/g, '')}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600 hover:bg-green-100 transition-all"
-                                  title="WhatsApp Message"
+                                  className="w-7 h-7 rounded-md bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 hover:bg-emerald-100 transition-colors"
+                                  title="WhatsApp"
                                 >
-                                  <MessageSquare size={14} />
+                                  <MessageSquare size={12} />
                                 </a>
                                 <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     downloadVCard(contact, selectedLead?.propertyId);
                                   }}
-                                  className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-all"
-                                  title="Save Contact (vCard)"
+                                  className="w-7 h-7 rounded-md bg-[#051D35]/5 border border-[#051D35]/15 flex items-center justify-center text-[#051D35] hover:bg-[#051D35]/10 transition-colors cursor-pointer"
+                                  title="Salvează vCard"
                                 >
-                                  <Download size={14} />
+                                  <Download size={12} />
                                 </button>
                               </div>
                             </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 py-6">
-                        <Users size={36} className="text-gray-300 mb-2" />
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Niciun contact</p>
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-6 text-center text-gray-400">
+                          <Users size={24} className="text-gray-300 mb-1" />
+                          <p className="text-[11px] font-medium">Niciun contact asociat</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Vizionări Section */}
-                  <div id="vizionaridb" className="bg-white p-5 rounded-[16px] border border-gray-100 flex flex-col min-h-[356px] shadow-sm scroll-mt-24 animate-fade-in">
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-[--color-accent]/10 flex items-center justify-center">
-                          <Calendar size={20} className="text-[--color-accent]" />
-                        </div>
-                        <div>
-                          <h3 className="text-[15px] font-bold text-gray-900 leading-none">Vizionări</h3>
-                          <p className="text-[11px] text-gray-500 font-medium tracking-tight mt-1">Calendar Întâlniri</p>
-                        </div>
-                      </div>
+                  {/* Activități & Vizionări Section */}
+                  <div id="vizionaridb" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20 flex flex-col">
+                    <div className="h-9 flex items-center justify-between px-3.5 bg-gray-50/80 border-b border-gray-200">
+                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">
+                        Activități ({viewings.length})
+                      </span>
                       <button 
-                        onClick={() => setIsViewingModalOpen(true)}
-                        className="w-8 h-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors text-gray-600"
-                        title="Programează Vizionare"
+                        onClick={() => setIsActivityModalOpen(true)}
+                        className="h-6 px-2 rounded bg-[#051D35] hover:bg-[#0a2b4a] text-white text-[10px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
+                        title="Programează Activitate"
                       >
-                        <Plus size={16} />
+                        <Plus size={11} className="text-[#BE9662]" />
+                        <span>Programează</span>
                       </button>
                     </div>
 
-                    {viewings.length > 0 ? (
-                      <div className="space-y-3 overflow-y-auto max-h-[300px] pr-1 custom-scrollbar">
-                        {viewings.map((viewing, idx) => (
-                          <motion.div
-                            key={viewing.id || `${viewing.date}-${viewing.hour}-${viewing.contactName}-${idx}`}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            onClick={() => {
-                              setSelectedViewing(viewing);
-                              setIsViewingDetailsOpen(true);
-                            }}
-                            className="bg-white hover:shadow-md p-3 rounded-[12px] transition-all border border-gray-100 hover:border-[--color-accent] group cursor-pointer"
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <div className="w-10 h-10 rounded-[10px] bg-gray-50 border border-gray-100 flex flex-col items-center justify-center text-[9px] font-black shrink-0 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
-                                  <span className="text-[--color-accent] leading-none mb-0.5">{viewing.date.split('-')[2]}</span>
-                                  <span className="text-gray-400 uppercase tracking-tighter leading-none">{new Date(viewing.date).toLocaleDateString('ro-RO', { month: 'short' })}</span>
-                                </div>
+                    <div className="p-3">
+                      {viewings.length > 0 ? (
+                        <div className="space-y-2 overflow-y-auto max-h-[280px] pr-1 custom-scrollbar">
+                          {viewings.map((viewing, idx) => (
+                            <div
+                              key={viewing.id || `${viewing.date}-${viewing.hour}-${viewing.contactName}-${idx}`}
+                              onClick={() => {
+                                setSelectedViewing(viewing);
+                                setIsViewingDetailsOpen(true);
+                              }}
+                              className="p-2.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50/70 transition-all cursor-pointer group"
+                            >
+                              <div className="flex items-center justify-between gap-1">
                                 <div className="min-w-0 flex-1">
-                                  <h4 className="text-[13px] font-bold text-gray-900 leading-tight truncate">{viewing.contactName}</h4>
-                                  <div className="flex items-center gap-1.5 mt-0.5">
-                                    <Clock size={10} className="text-gray-400" />
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{viewing.hour}</span>
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="text-[10px] font-mono font-bold text-[#BE9662] flex items-center gap-1">
+                                      <Clock size={10} />
+                                      {viewing.hour}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-gray-400">·</span>
+                                    <span className="text-[10px] font-mono text-gray-500">
+                                      {viewing.date}
+                                    </span>
                                   </div>
+                                  <h4 className="text-xs font-semibold text-gray-900 leading-tight truncate group-hover:text-[#051D35]">
+                                    {viewing.contactName}
+                                  </h4>
                                 </div>
-                              </div>
-                              <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                {contacts.find(c => c.firstName + " " + c.lastName === viewing.contactName)?.phone && (
-                                  <a 
-                                    href={`https://wa.me/${contacts.find(c => c.firstName + " " + c.lastName === viewing.contactName)?.phone.replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-6 h-6 rounded-full bg-green-50 flex items-center justify-center text-green-600 hover:bg-green-100 transition-all text-xs"
-                                    title="WhatsApp Business"
+
+                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <button 
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        await viewingsService.deleteViewing(viewing.id!);
+                                        toast.success('Activitate ștearsă');
+                                      } catch (error) {
+                                        toast.error('Eroare la ștergere');
+                                      }
+                                    }}
+                                    className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                                    title="Șterge"
                                   >
-                                    <MessageSquare size={12} />
-                                  </a>
-                                )}
-                                <button 
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    try {
-                                      await viewingsService.deleteViewing(viewing.id!);
-                                      toast.success('Vizionare ștearsă');
-                                    } catch (error) {
-                                      toast.error('Eroare la ștergere');
-                                    }
-                                  }}
-                                  className="w-6 h-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-300 hover:text-red-500 hover:border-red-100 transition-all opacity-0 group-hover:opacity-100 text-xs"
-                                  title="Șterge"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 py-6">
-                        <Calendar size={36} className="text-gray-300 mb-2" />
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Nicio vizionare</p>
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-6 text-center text-gray-400">
+                          <Calendar size={24} className="text-gray-300 mb-1" />
+                          <p className="text-[11px] font-medium">Nicio activitate programată</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Delete Action Section - Only shown when status is 'Sterse' */}
                   {selectedLead.status === 'Sterse' && (
-                    <div id="delete-section" className="pt-4 scroll-mt-24">
-                      <div className="bg-red-50 p-5 rounded-[16px] border border-red-100 flex flex-col items-center text-center shadow-sm">
-                        <div className="w-12 h-12 bg-white rounded-[16px] flex items-center justify-center text-red-500 mb-4 border border-red-50 shadow-sm">
-                          <Trash2 size={24} />
+                    <div id="delete-section" className="scroll-mt-20">
+                      <div className="bg-red-50/50 p-4 rounded-md border border-red-200 flex flex-col items-center text-center">
+                        <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center text-red-600 mb-2 border border-red-100 shadow-xs">
+                          <Trash2 size={18} />
                         </div>
-                        <h3 className="text-md font-bold text-red-900 mb-2">Ștergere Definitivă</h3>
-                        <p className="text-[11px] text-red-600 mb-6 max-w-xs leading-relaxed font-medium">
-                          Această acțiune este ireversibilă. Toate datele vor fi șterse definitiv din baza de date.
+                        <h3 className="text-xs font-bold text-red-900 mb-1">Ștergere Definitivă</h3>
+                        <p className="text-[11px] text-red-600 mb-3 max-w-xs leading-relaxed font-medium">
+                          Această acțiune este ireversibilă. Toate datele vor fi șterse definitiv din sistem.
                         </p>
                         
                         {!showDeleteConfirm ? (
                           <button
                             onClick={() => setShowDeleteConfirm(true)}
-                            className="w-full h-12 bg-red-600 hover:bg-red-700 text-white rounded-[16px] font-bold transition-all flex items-center justify-center gap-2 text-[13px] shadow-sm active:scale-95"
+                            className="w-full h-8 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold transition-all flex items-center justify-center gap-1.5 text-xs shadow-xs cursor-pointer"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={13} />
                             Șterge Proprietate Definitiv
                           </button>
                         ) : (
-                          <div className="flex flex-col gap-3 w-full">
-                            <p className="text-[10px] font-extrabold text-red-700 uppercase tracking-widest mb-1">Confirmați ștergerea?</p>
+                          <div className="flex flex-col gap-2 w-full">
+                            <p className="text-[10px] font-bold text-red-800 uppercase tracking-wider">Confirmați ștergerea?</p>
                             <div className="flex gap-2 w-full">
                               <button
                                 onClick={handleDeleteLead}
-                                className="flex-1 h-11 bg-red-600 text-white rounded-[16px] font-bold text-xs hover:bg-red-700 transition-colors shadow-sm"
+                                className="flex-1 h-8 bg-red-600 text-white rounded-md font-semibold text-xs hover:bg-red-700 transition-colors shadow-xs cursor-pointer"
                               >
                                 Da, Șterge
                               </button>
                               <button
                                 onClick={() => setShowDeleteConfirm(false)}
-                                className="flex-1 h-11 bg-white border border-gray-200 text-gray-500 rounded-[16px] font-bold text-xs hover:bg-gray-50 transition-colors shadow-sm"
+                                className="flex-1 h-8 bg-white border border-gray-200 text-gray-600 rounded-md font-semibold text-xs hover:bg-gray-50 transition-colors cursor-pointer"
                               >
                                 Nu
                               </button>
@@ -2083,14 +2199,14 @@ export const Home: React.FC = () => {
                 </div>
 
                 {/* Column 2: Main Content Area */}
-                <div className="col-span-1 min-w-0 space-y-6 order-1 lg:order-2">
+                <div className="col-span-1 min-w-0 space-y-4 order-1 lg:order-2">
                   
                   {/* Basic Info Card */}
-                  <div id="basicale" className="bg-white rounded-[16px] border border-gray-100 shadow-sm overflow-hidden scroll-mt-24">
-                    <div className="h-14 flex items-center px-6 bg-gray-50/50 border-b border-gray-100">
-                      <span className="text-[14px] font-bold text-[--color-text-main] uppercase tracking-wider">Informații de Bază</span>
+                  <div id="basicale" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20">
+                    <div className="h-9 flex items-center px-3.5 bg-gray-50/80 border-b border-gray-200">
+                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">Informații de Bază</span>
                     </div>
-                    <div className="p-6">
+                    <div className="p-4">
                       <BasicInfoSection 
                         editedTitle={editedTitle} setEditedTitle={setEditedTitle}
                         editedName={editedName} setEditedName={setEditedName}
@@ -2109,9 +2225,9 @@ export const Home: React.FC = () => {
 
                   {/* Extraction Section or Viewer */}
                   {isExtracting ? (
-                    <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-[16px] border border-gray-100 shadow-sm">
-                      <Loader2 className="animate-spin text-[#f44336] mb-4" />
-                      <p className="text-[14px] font-bold tracking-[0.3em] text-gray-300 uppercase">{extractionStatus}</p>
+                    <div className="py-16 flex flex-col items-center justify-center text-center bg-white rounded-md border border-gray-200 shadow-none">
+                      <Loader2 className="animate-spin text-[#051D35] mb-3" size={24} />
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{extractionStatus}</p>
                     </div>
                   ) : selectedLead.extractedData ? (
                     <ExtractionViewer 
@@ -2136,15 +2252,15 @@ export const Home: React.FC = () => {
                     />
                   ) : (
                     selectedLead.status === "Activa" && (
-                      <div className="py-20 flex flex-col items-center justify-center text-center bg-white rounded-[16px] border border-gray-100">
-                        <Database className="text-gray-100 mb-4" size={60} />
-                        <p className="text-[14px] font-bold text-gray-300 uppercase tracking-widest mb-6">Așteptare extracție sau eroare</p>
+                      <div className="py-14 flex flex-col items-center justify-center text-center bg-white rounded-md border border-gray-200 p-6">
+                        <Database className="text-gray-200 mb-3" size={40} />
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Așteptare extracție sau eroare</p>
                         <button 
                           onClick={() => triggerExtraction(selectedLead)}
-                          className="bg-[#000000] text-white hover:bg-[#333333] transition-colors rounded-full px-8 h-12 font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
+                          className="bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors rounded-md px-5 h-9 font-semibold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                         >
-                           <Zap size={16} fill="currentColor" className="text-[--color-accent]" />
-                           Extrage Date AI
+                           <Zap size={14} className="text-[#BE9662]" />
+                           <span>Extrage Date AI</span>
                         </button>
                       </div>
                     )
@@ -2153,12 +2269,13 @@ export const Home: React.FC = () => {
                 </div>
 
                 {/* Column 3: Right Sticky Navigator (Desktop only) */}
-                <div className="hidden lg:block lg:sticky lg:top-[120px] lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto no-scrollbar order-2 lg:order-3">
-                  <div className="bg-white p-5 rounded-[16px] border border-gray-100 shadow-sm space-y-4">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Navigare Secțiuni</h3>
-                    <div className="space-y-1.5 relative">
-                      <div className="absolute left-[13px] top-3 bottom-3 w-0.5 bg-gray-100" />
-                      
+                <div className="hidden lg:block lg:sticky lg:top-[70px] lg:max-h-[calc(100vh-90px)] lg:overflow-y-auto no-scrollbar order-2 lg:order-3">
+                  <div className="bg-white rounded-md border border-gray-200 p-2.5 shadow-none space-y-1">
+                    <div className="h-7 flex items-center px-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 mb-1">
+                      Navigare Secțiuni
+                    </div>
+                    
+                    <div className="space-y-1">
                       {activeSectionsList
                         .filter((sect) => !["identificare", "contactealocate", "vizionaridb"].includes(sect.id))
                         .map((sect) => {
@@ -2169,73 +2286,62 @@ export const Home: React.FC = () => {
                             <button
                               key={sect.id}
                               onClick={() => scrollToSection(sect.id)}
-                              className={`w-full flex items-center justify-between text-left h-[48px] pl-7 pr-3 rounded-lg text-[16px] font-normal transition-all group relative ${
+                              className={`w-full flex items-center justify-between text-left h-7 px-2.5 rounded-md text-xs transition-colors cursor-pointer ${
                                 isSelected 
-                                  ? "text-gray-900 bg-gray-100/80" 
-                                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-50/40"
+                                  ? "bg-[#051D35] text-white font-semibold shadow-xs" 
+                                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium"
                               }`}
                             >
-                              <div className={`absolute left-[14px] top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border transition-all ${
-                                isSelected 
-                                  ? "bg-[--color-accent] border-[--color-accent] scale-125" 
-                                  : "bg-white border-gray-200 group-hover:border-gray-400"
-                              }`} />
-
                               <span className="truncate">{sect.label}</span>
                               
-                              <span className="flex items-center shrink-0 ml-2">
+                              <span className="flex items-center shrink-0 ml-1.5">
                                 {status === "complete" && (
-                                  <span className="w-4 h-4 rounded-full bg-green-50 text-green-600 font-bold text-[10px] flex items-center justify-center border border-green-100" title="Complet">✓</span>
+                                  <span className={`text-[10px] font-bold ${isSelected ? 'text-[#BE9662]' : 'text-emerald-600'}`}>✓</span>
                                 )}
                                 {status === "partial" && (
-                                  <span className="w-4 h-4 rounded-full bg-amber-50 text-amber-600 font-bold text-[10px] flex items-center justify-center border border-amber-100" title="Parțial completat">!</span>
+                                  <span className={`text-[10px] font-bold ${isSelected ? 'text-amber-300' : 'text-amber-500'}`}>!</span>
                                 )}
                               </span>
                             </button>
                           );
                         })}
                     </div>
-                  </div>
 
-                  {/* Share Link Card (under page navigation) */}
-                  <div className="mt-4 bg-white p-5 rounded-[16px] border border-gray-100 shadow-sm space-y-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-orange-50 text-[--color-accent] flex items-center justify-center shrink-0">
-                        <Share2 size={16} />
+                    {/* Share Link Card (under page navigation) */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Distribuie Link</span>
+                        <Share2 size={12} className="text-[#BE9662]" />
                       </div>
-                      <div className="min-w-0">
-                        <h4 className="text-[12px] font-bold text-gray-900 uppercase tracking-wider">Distribuie Link</h4>
-                        <p className="text-[10px] text-gray-400 font-medium truncate">Accesibil oricui pe internet</p>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl p-1.5 pl-3">
-                      <span className="text-[11px] text-gray-500 font-mono truncate flex-1 select-all" title={getPublicShareUrl(selectedLead.id!)}>
-                        {getPublicShareUrl(selectedLead.id!)}
-                      </span>
-                      <button
-                        onClick={() => handleCopyShareLink(selectedLead.id!)}
-                        className={`h-8 px-3 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm ${
-                          copiedShareId === selectedLead.id
-                            ? "bg-green-600 text-white"
-                            : "bg-[#051D35] text-white hover:bg-[#0a2b4a]"
-                        }`}
-                        title="Copiază link-ul"
+                      <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-md p-1 pl-2">
+                        <span className="text-[10px] text-gray-500 font-mono truncate flex-1 select-all" title={getPublicShareUrl(selectedLead.id!)}>
+                          {getPublicShareUrl(selectedLead.id!)}
+                        </span>
+                        <button
+                          onClick={() => handleCopyShareLink(selectedLead.id!)}
+                          className={`h-6 px-2 rounded text-[10px] font-semibold transition-all flex items-center gap-1 shrink-0 ${
+                            copiedShareId === selectedLead.id
+                              ? "bg-green-600 text-white"
+                              : "bg-[#051D35] text-white hover:bg-[#0a2b4a]"
+                          }`}
+                          title="Copiază link-ul"
+                        >
+                          {copiedShareId === selectedLead.id ? <Check size={11} /> : <Copy size={11} />}
+                          <span>{copiedShareId === selectedLead.id ? "Copiat" : "Copiază"}</span>
+                        </button>
+                      </div>
+
+                      <a
+                        href={getPublicShareUrl(selectedLead.id!)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md text-[11px] font-medium text-gray-700 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
                       >
-                        {copiedShareId === selectedLead.id ? <Check size={12} /> : <Copy size={12} />}
-                        <span>{copiedShareId === selectedLead.id ? "Copiat" : "Copiază"}</span>
-                      </button>
+                        <ExternalLink size={11} />
+                        <span>Deschide link public</span>
+                      </a>
                     </div>
-
-                    <a
-                      href={getPublicShareUrl(selectedLead.id!)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-gray-600 hover:text-gray-900 transition-colors border border-gray-100 rounded-xl hover:bg-gray-50"
-                    >
-                      <ExternalLink size={12} />
-                      <span>Deschide link-ul</span>
-                    </a>
                   </div>
                 </div>
 
@@ -2251,11 +2357,24 @@ export const Home: React.FC = () => {
         notifications={notifications}
       />
 
+      <CalendarDrawer 
+        isOpen={isCalendarOpen} 
+        onClose={() => setIsCalendarOpen(false)} 
+        leads={leads}
+        contacts={contacts}
+        onAddActivityClick={(defaultDate, defaultHour) => {
+          setActivityDefaultDate(defaultDate || "");
+          setActivityDefaultHour(defaultHour || "");
+          setIsCalendarOpen(false);
+          setIsActivityModalOpen(true);
+        }}
+      />
+
       <AddLeadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <AddCerereModal 
         isOpen={isCerereModalOpen} 
         onClose={() => setIsCerereModalOpen(false)} 
-        onSuccess={() => setActiveTab("AreInteres")}
+        onSuccess={() => setActiveTab("Noua")}
       />
       <ExtractionRulesModal isOpen={isExtractionRulesOpen} onClose={() => setIsExtractionRulesOpen(false)} />
       <AddContactModal 
@@ -2273,9 +2392,13 @@ export const Home: React.FC = () => {
         onClose={() => {
           setIsActivityModalOpen(false);
           setIsTourModalOpen(false);
+          setActivityDefaultDate("");
+          setActivityDefaultHour("");
         }} 
         defaultPropertyId={selectedLead?.propertyId || selectedLead?.id} 
         defaultClientName={selectedLead?.ownerName !== "Nespecificat" ? selectedLead?.ownerName : ""} 
+        defaultDate={activityDefaultDate}
+        defaultHour={activityDefaultHour}
       />
       <AddViewingModal 
         isOpen={isViewingModalOpen} 

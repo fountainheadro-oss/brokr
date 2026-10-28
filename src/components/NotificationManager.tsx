@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, Bell } from 'lucide-react';
 import { toast, Toaster, ToastBar } from 'react-hot-toast';
 import { viewingsService, Viewing } from '../services/viewingsService';
 import { parseISO, differenceInMinutes, isAfter } from 'date-fns';
@@ -20,19 +20,21 @@ export const NotificationManager: React.FC = () => {
       const timer = setTimeout(() => {
         toast((t) => (
           <div className="flex flex-col gap-2.5 font-sans min-w-[280px]">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl mt-0.5">🔔</span>
-              <div>
-                <p className="text-[14px] font-bold text-gray-900 leading-tight">Activați Notificările Native</p>
-                <p className="text-[12px] text-gray-500 font-medium mt-1 leading-normal">
-                  Rămâneți la curent cu vizionările programate chiar și când nu sunteți în aplicație.
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#051D35]/5 border border-[#051D35]/15 text-[#051D35] flex items-center justify-center shrink-0 mt-0.5">
+                <Bell size={15} className="text-[#BE9662]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-gray-900 leading-tight">Activați Notificările Native</p>
+                <p className="text-[11px] text-gray-500 font-medium mt-1 leading-normal">
+                  Rămâneți la curent cu vizionările și activitățile programate chiar și când nu sunteți în aplicație.
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 mt-1">
+            <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t border-gray-100">
               <button
                 onClick={() => toast.dismiss(t.id)}
-                className="px-3 py-1.5 text-xs font-bold text-gray-500 hover:text-black hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
+                className="h-7 px-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors border border-gray-200 cursor-pointer"
               >
                 Nu acum
               </button>
@@ -45,7 +47,7 @@ export const NotificationManager: React.FC = () => {
                     console.error('[NotificationManager] Request permission failed:', err);
                   }
                 }}
-                className="px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white bg-[#051D35] hover:bg-[#0a2b4a] rounded-lg transition-all shadow-sm"
+                className="h-7 px-3 text-xs font-semibold text-white bg-[#051D35] hover:bg-[#0a2b4a] rounded-md transition-colors shadow-xs cursor-pointer"
               >
                 Permite Alerte
               </button>
@@ -184,26 +186,37 @@ export const NotificationManager: React.FC = () => {
       toastOptions={{
         className: 'font-sans',
         style: {
-          padding: '24px 32px',
-          borderRadius: '28px',
-          fontSize: '17px',
-          fontWeight: '800',
-          boxShadow: '0 30px 60px -12px rgba(0,0,0,0.25)',
-          border: '3px solid #f0f0f0',
-          maxWidth: '500px',
+          padding: '10px 14px',
+          borderRadius: '8px',
+          fontSize: '12px',
+          fontWeight: '600',
+          boxShadow: '0 4px 16px -2px rgba(5, 29, 53, 0.12), 0 2px 6px -1px rgba(5, 29, 53, 0.08)',
+          border: '1px solid #e5e7eb',
+          maxWidth: '420px',
           background: '#ffffff',
-          color: '#000000',
+          color: '#051D35',
         },
-        duration: 10000, // Default duration set to 10s
+        duration: 4000,
         success: {
           style: {
-            borderColor: '#ff3b30',
-            background: '#fff',
-            boxShadow: '0 30px 60px -12px rgba(255,59,48,0.2)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            background: '#ffffff',
+            color: '#051D35',
           },
           iconTheme: {
-            primary: '#ff3b30',
-            secondary: '#fff',
+            primary: '#10b981',
+            secondary: '#ffffff',
+          },
+        },
+        error: {
+          style: {
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            background: '#ffffff',
+            color: '#051D35',
+          },
+          iconTheme: {
+            primary: '#ef4444',
+            secondary: '#ffffff',
           },
         },
       }}
@@ -211,15 +224,15 @@ export const NotificationManager: React.FC = () => {
       {(t) => (
         <ToastBar toast={t}>
           {({ icon, message }) => (
-            <div className="flex items-center gap-3 w-full">
+            <div className="flex items-center gap-2.5 w-full">
               {icon}
-              <div className="flex-1">{message}</div>
+              <div className="flex-1 text-xs font-medium text-gray-800 leading-snug">{message}</div>
               {t.type !== 'loading' && (
                 <button 
                   onClick={() => toast.dismiss(t.id)}
-                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors text-gray-400 hover:text-black shrink-0"
+                  className="w-6 h-6 rounded-md hover:bg-gray-100 flex items-center justify-center transition-colors text-gray-400 hover:text-gray-900 shrink-0 cursor-pointer"
                 >
-                  <X size={18} />
+                  <X size={14} />
                 </button>
               )}
             </div>
