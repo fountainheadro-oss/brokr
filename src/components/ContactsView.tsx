@@ -28,6 +28,13 @@ const TYPE_LABELS: Record<ContactType, string> = {
   Agent: "Agent"
 };
 
+const CONTACT_FILTERS = [
+  { id: "Toate", label: "Toate" },
+  { id: "Proprietari", label: "Proprietari", types: ["Owner", "Proprietar"] },
+  { id: "Cumparatori", label: "Cumpărători", types: ["Buyer", "Cumparator", "Cumpărător"] },
+  { id: "Chiriasi", label: "Chiriași", types: ["Renter", "Chirias", "Chiriaș"] }
+];
+
 const TYPE_COLORS: Record<ContactType, string> = {
   Buyer: "bg-blue-50 text-blue-700 border-blue-200",
   Renter: "bg-[#BE9662]/10 text-[#051D35] border-[#BE9662]/30",
@@ -60,18 +67,24 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
     try {
       await contactsService.deleteContact(contactId);
       setConfirmDeleteId(null);
-      toast.success("Clientul a fost șters!");
+      toast.success("Contactul a fost șters!");
     } catch (e) {
       console.error(e);
-      toast.error("Eroare la ștergerea clientului.");
+      toast.error("Eroare la ștergerea contactului.");
     }
   };
 
   const filteredContacts = useMemo(() => {
     return contacts.filter((c, idx) => {
       // Type filter
-      if (selectedType !== "Toate" && c.type !== selectedType) {
-        return false;
+      if (selectedType !== "Toate") {
+        const filterDef = CONTACT_FILTERS.find(f => f.id === selectedType);
+        if (filterDef && filterDef.types) {
+          const cType = String(c.type || "");
+          if (!filterDef.types.some(t => t.toLowerCase() === cType.toLowerCase())) {
+            return false;
+          }
+        }
       }
 
       // Search filter
@@ -100,7 +113,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-[15px] font-semibold tracking-tight text-gray-900">
-                Clienți
+                Contacte
               </h2>
               <span className="text-[11px] font-mono font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                 {contacts.length} total
@@ -125,39 +138,41 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
             />
           </div>
 
-          {/* Add Client Button */}
+          {/* Add Contact Button */}
           <button
             type="button"
             onClick={onAddContactClick}
             className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-md transition-colors cursor-pointer shrink-0 shadow-xs"
           >
             <Plus size={14} className="text-[#BE9662]" />
-            <span>Adaugă Client</span>
+            <span>Adaugă Contact</span>
           </button>
         </div>
       </div>
 
       {/* Sub-header Filter Tabs */}
       <div className="bg-white border-b border-gray-200 shrink-0 px-6 h-[40px] flex items-center gap-2 overflow-x-auto no-scrollbar">
-        {["Toate", "Buyer", "Renter", "Owner", "Agent"].map((t) => {
-          const label = t === "Toate" ? "Toate" : TYPE_LABELS[t as ContactType];
-          const count = t === "Toate" 
+        {CONTACT_FILTERS.map((f) => {
+          const count = f.id === "Toate" 
             ? contacts.length 
-            : contacts.filter(c => c.type === t).length;
+            : contacts.filter(c => {
+                const cType = String(c.type || "");
+                return f.types?.some(t => t.toLowerCase() === cType.toLowerCase());
+              }).length;
 
           return (
             <button
-              key={t}
-              onClick={() => setSelectedType(t)}
+              key={f.id}
+              onClick={() => setSelectedType(f.id)}
               className={`h-7 px-2.5 flex items-center gap-1.5 text-xs rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-                selectedType === t
+                selectedType === f.id
                   ? "bg-[#051D35] text-white font-medium shadow-xs"
                   : "text-gray-600 hover:text-[#051D35] hover:bg-gray-100"
               }`}
             >
-              <span>{label}</span>
+              <span>{f.label}</span>
               <span className={`text-[10px] font-mono px-1 rounded ${
-                selectedType === t ? "bg-white/15 text-[#BE9662]" : "bg-gray-100 text-gray-500"
+                selectedType === f.id ? "bg-white/15 text-[#BE9662]" : "bg-gray-100 text-gray-500"
               }`}>
                 {count}
               </span>
@@ -173,11 +188,11 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
             <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-3">
               <Users size={20} />
             </div>
-            <h3 className="text-sm font-semibold text-gray-900">Niciun client găsit</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Niciun contact găsit</h3>
             <p className="text-xs text-gray-500 mt-1 max-w-sm">
               {search 
-                ? `Nu există niciun client care să corespundă căutării "${search}".` 
-                : "Nu aveți niciun client înregistrat în această categorie."}
+                ? `Nu există niciun contact care să corespundă căutării "${search}".` 
+                : "Nu aveți niciun contact înregistrat în această categorie."}
             </p>
             <button
               type="button"
@@ -185,7 +200,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
               className="mt-4 h-8 px-3.5 flex items-center gap-1.5 text-xs font-medium bg-[#051D35] text-white rounded-md hover:bg-[#0a2b4a] transition-colors"
             >
               <Plus size={14} className="text-[#BE9662]" />
-              <span>Adaugă primul client</span>
+              <span>Adaugă primul contact</span>
             </button>
           </div>
         ) : (
@@ -193,7 +208,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  <th className="py-3 px-4 w-28">ID Client</th>
+                  <th className="py-3 px-4 w-28">ID</th>
                   <th className="py-3 px-4">Nume și Prenume</th>
                   <th className="py-3 px-4 w-32">Tip Client</th>
                   <th className="py-3 px-4">Telefon</th>

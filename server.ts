@@ -99,7 +99,7 @@ async function cleanImageWatermarks(buffer: Buffer, mimeType: string, imageUrl: 
     const prompt = "Detect all prominent watermarks, text overlays (like owner or agent phone/email/names, e.g. 'George Leotescu', 'Storia', agency logos), stamp overlays, banner labels, or company logos overlayed on this photo. For each item found, provide its exact ymin, xmin, ymax, xmax coordinates normalized from 0 to 1000.";
     
     const genResponse = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.1-flash-lite",
       contents: [
         {
           inlineData: {
@@ -352,6 +352,121 @@ async function startServer() {
     } catch (e: any) {
       console.error("[Server] /api/extract-data error:", e);
       res.status(500).json({ error: e.message || "Failed to extract content data" });
+    }
+  });
+
+  // API endpoint for optional on-demand AI generation of title and description
+  app.post("/api/generate-ai-text", async (req, res) => {
+    try {
+      const { category, transactionType, zone, price, specs, originalTitle, originalDescription, propertyId } = req.body;
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(400).json({ error: "Cheia GEMINI_API_KEY nu este configurată pe server." });
+      }
+
+      const prompt = `
+ESTI UN EXPERT IMOBILIAR DE TOP.
+Sarcina ta este să generezi un TITLU și o DESCRIERE DE MARKETING conform regulilor stricte de mai jos.
+
+DATE PROPRIETATE:
+- Categorie: ${category || "Apartament"}
+- Tip Tranzacție: ${transactionType || "Vânzare"}
+- Zonă: ${zone || "București"}
+- Preț: ${price || "N/A"}
+- ID Proprietate: ${propertyId ? propertyId.trim() : ""}
+- Specificații tehnice: ${JSON.stringify(specs || {})}
+- Titlu original: "${originalTitle || ""}"
+- Descriere originală: "${(originalDescription || "").substring(0, 3000)}"
+
+REGULI STRICTE MANDATATE:
+1. TITLUL IDENTIC: Titlul din câmpul 'title' TREBUIE să fie ABSOLUT IDENTIC cu titlul din corpul descrierii (situat pe linia direct de sub 📌 ID, după emojiul 🏡 sau 🏢).
+2. STRUCTURĂ TITLU: Tip imobil + număr camere/încăperi sau suprafață mp | Zonă | Pct. de interes | Pct forte imobil | Dotări | Parcare. Titlul TREBUIE să aibă SUB 70 de caractere.
+3. FĂRĂ NUMĂR STRADĂ, FĂRĂ COMPLEX REZIDENȚIAL: Niciodată nu include numărul străzii, numărul blocului, scara, apartamentul sau denumiri de complexe rezidențiale (ex: Astorium, Hills, etc.) nici în titlu, nici în descriere! Folosește doar zona/cartierul general.
+4. FĂRĂ COMISION 0%: Elimină complet orice referire la "0% comision", "comision 0", "fără comision".
+5. ȘABLON DESCRIERE APARTAMENTE ȘI CASE / VILE:
+Folosește cu sfințenie următorul șablon structural:
+📌 ID ${propertyId ? propertyId.trim() : ""}
+🏡 [Titlul identic cu cel din campul de titlu]
+
+[O singură propoziție scurtă tip teaser]
+[Un scurt paragraf descriptiv al imobilului]
+
+━━━━━━━━━━━━━━━━━━
+
+⭐ AVANTAJE PRINCIPALE
+
+-[Compartimentare, ex: -decomandat]
+-[avantaj_1]
+-[avantaj_2]
+
+━━━━━━━━━━━━━━━━━━
+
+🛋️ DOTĂRI
+
+-[dotare_1]
+-[dotare_2]
+
+[Scurt comentariu opțional despre organizarea spațiului]
+
+━━━━━━━━━━━━━━━━━━
+
+📍 LOCAȚIE
+
+Acces rapid către:
+-[punct_interes_1]
+-[punct_interes_2]
+
+━━━━━━━━━━━━━━━━━━
+
+💰 ${transactionType === "Închiriere" ? "ÎNCHIRIERE" : "VÂNZARE"}
+
+${transactionType === "Închiriere" ? `${price || "N/A"}\n1 lună garanție\nComision 50% + TVA\nDisponibil imediat` : `${price || "N/A"}\nDisponibil imediat`}
+
+━━━━━━━━━━━━━━━━━━
+
+🤝 ${transactionType === "Închiriere" ? "SUPORT ÎNCHIRIERE" : "SUPORT VÂNZARE"}
+
+-consultanță dedicată din partea agentiei CLC
+-asistență completă în întocmirea contractului și înregistrarea ANAF
+-posibilitate de vizionare rapidă și flexibilă
+
+📞 Pentru vizionare sau detalii suplimentare, contactează-ne telefonic.
+
+6. DACĂ ESTE BIROU, SPAȚIU COMERCIAL SAU INDUSTRIAL:
+Folosește șablonul dedicat pentru spații comerciale (cu 📌 ID Proprietate, 🏢 Titlu, ⭐ PUNCTE CHEIE, 🛠️ SPAȚIUL, 📍 LOCAȚIE & ACCES, 💼 POTRIVIT PENTRU, 💰 CONDIȚII, 🤝 SUPORT), eliminând complet parantezele.
+
+Returnează un JSON strict cu următoarele chei:
+{
+  "title": "Titlul proprietatii sub 70 caractere",
+  "description": "Textul complet al descrierii conform sablonului"
+}
+`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: [{ text: prompt }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              description: { type: Type.STRING }
+            },
+            required: ["title", "description"]
+          }
+        }
+      });
+
+      const text = response.text;
+      if (!text) throw new Error("Nu s-a primit niciun răspuns de la Gemini");
+      const parsed = JSON.parse(text);
+      res.json(parsed);
+    } catch (e: any) {
+      console.error("[Server] /api/generate-ai-text error:", e);
+      const isCredits = e?.message?.includes("402") || e?.message?.includes("RESOURCE_EXHAUSTED") || e?.message?.includes("prepayment credits");
+      res.status(isCredits ? 402 : 500).json({ 
+        error: isCredits ? "Creditele preplătite Gemini sunt epuizate. Poți genera titlul și descrierea folosind butoanele Template clasice fără AI." : (e.message || "Eroare la generarea textului cu AI")
+      });
     }
   });
 
@@ -1011,21 +1126,34 @@ async function startServer() {
         ],
       });
 
-      // Extract custom script details for exact specification metadata (JSON-LD, NEXT_DATA or window.__INITIAL_STATE__)
+      // Extract custom script details for exact specification metadata (JSON-LD or NEXT_DATA) - limited to essential data
       const scriptTexts: string[] = [];
+      let jsonLdData: any = null;
       $("script[type='application/ld+json']").each((_, el) => {
         const htmlVal = $(el).html();
-        if (htmlVal) scriptTexts.push(htmlVal.trim());
+        if (htmlVal) {
+          if (!jsonLdData) {
+            try { jsonLdData = JSON.parse(htmlVal); } catch (e) {}
+          }
+          if (scriptTexts.join("").length < 3000) {
+            scriptTexts.push(htmlVal.trim().substring(0, 1500));
+          }
+        }
       });
+
+      let nextAdData: any = null;
       $("script#__NEXT_DATA__").each((_, el) => {
         const htmlVal = $(el).html();
-        if (htmlVal) scriptTexts.push(htmlVal.trim());
-      });
-      $("script").each((_, el) => {
-        const htmlVal = $(el).html() || "";
-        if (htmlVal.includes("__INITIAL_STATE__") || htmlVal.includes("INITIAL_STATE") || htmlVal.includes("window.__APP_STATE__")) {
-          // Keep a safe chunk of state containing metadata
-          scriptTexts.push(htmlVal.trim().substring(0, 20000));
+        if (htmlVal) {
+          if (!nextAdData) {
+            try {
+              const parsed = JSON.parse(htmlVal);
+              nextAdData = parsed?.props?.pageProps?.ad || parsed?.props?.pageProps?.advert;
+            } catch (e) {}
+          }
+          if (scriptTexts.join("").length < 3000) {
+            scriptTexts.push(htmlVal.trim().substring(0, 1500));
+          }
         }
       });
 
@@ -1103,115 +1231,349 @@ async function startServer() {
         }
       }
 
-      // Heuristic parsing for surface information on Romanian real estate portals (e.g. imobiliare.ro, storia.ro, etc.)
-      const parsedSpecs: string[] = [];
-      const surfaceMatches = [
-        { label: "Suprafata utila", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*util[a\u0103]?|s\s*util[a\u0103]?|utila)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
-        { label: "Suprafata construita", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*construit[a\u0103]?|s\s*construit[a\u0103]?|construita)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
-        { label: "Suprafata utila totala", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*util[a\u0103]?\s*total[a\u0103]?|s\s*total[a\u0103]?|utila\s*totala)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
-        { label: "Suprafata teren", regex: /(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*teren|teren)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/gi },
-        { label: "Numar camere", regex: /(?:num[a\u0103]r\s*camere|camere|nr\s*camere)\s*[:\-–]?\s*(\d+)/gi },
-        { label: "Etaj", regex: /(?:etaj|etajul)\s*[:\-–]?\s*(parter|etaj\s*\d+|\d+\/\d+|\d+)/gi }
-      ];
-
-      for (const item of surfaceMatches) {
-        let match;
-        item.regex.lastIndex = 0;
-        while ((match = item.regex.exec(text)) !== null) {
-          parsedSpecs.push(`${item.label}: ${match[0].trim()}`);
-          if (parsedSpecs.length > 15) break;
-        }
-        item.regex.lastIndex = 0;
-        while ((match = item.regex.exec(html)) !== null) {
-          parsedSpecs.push(`[HTML Raw Specs] ${item.label}: ${match[0].trim()}`);
-          if (parsedSpecs.length > 30) break;
-        }
-      }
-
-      // Also look for key parameters inside scripts/HTML for imobiliare/storia/etc.
-      const rawJsonMatches = html.match(/"(?:m2|mp|surface|surface_area|suprafata_utila|suprafataUtila|suprafata|size_utila|size|area|utila|construita)"\s*:\s*["]?(\d+(?:[.,]\d+)?)["]?/gi) || [];
-      rawJsonMatches.slice(0, 40).forEach(keyMatch => {
-        parsedSpecs.push(`[JSON Property Metric]: ${keyMatch.trim()}`);
-      });
-
-      // Prepend metadata and Javascript states to guide Gemini in exact surface and metric extraction
-      let enrichedText = text;
-      if (parsedSpecs.length > 0) {
-        enrichedText = "--- DATE TEHNICE EXZACT PARSATE (MANDATORY METERS) ---\n" + 
-                     parsedSpecs.join("\n") + 
-                     "\n--- SFARSIT DATE TEHNICE ---\n\n" + 
-                     enrichedText;
-      }
-
-      if (scriptTexts.length > 0) {
-        enrichedText = "--- METADATE SI STATE SCRIPT (DATE REALE SI EXACTE DE PE PAGINA DETECTOR METRICI) ---\n" + 
-                     scriptTexts.join("\n\n") + 
-                     "\n--- SFARSIT METADATE SELECTATE ---\n\n" + 
-                     enrichedText;
-      }
+      // --- Pure Crawler Extraction of Full Property Data (No AI Needed!) ---
+      const lowerCombo = (url + " " + title + " " + text).toLowerCase();
       
-      if (sellerName) {
-        enrichedText = `SELLER_NAME: ${sellerName}\n\n` + enrichedText;
+      // 1. Transaction Type
+      const isRent = lowerCombo.includes("inchirier") || 
+                     lowerCombo.includes("închiriat") || 
+                     lowerCombo.includes("inchiriat") || 
+                     lowerCombo.includes("chirie") || 
+                     lowerCombo.includes("/rent/");
+      const transactionType = isRent ? "Închiriere" : "Vânzare";
+
+      // 2. Category
+      let categoria = "Apartament";
+      if (lowerCombo.includes("garsonier") || lowerCombo.includes("studio")) {
+        categoria = "Apartament";
+      } else if (lowerCombo.includes("casa") || lowerCombo.includes("vila") || lowerCombo.includes("duplex")) {
+        categoria = "Casa/Vila";
+      } else if (lowerCombo.includes("teren")) {
+        categoria = "Teren";
+      } else if (lowerCombo.includes("birou") || lowerCombo.includes("office")) {
+        categoria = "Spatiu Birou";
+      } else if (lowerCombo.includes("comercial") || lowerCombo.includes("magazin") || lowerCombo.includes("spatiu comercial")) {
+        categoria = "Spatiu Comercial";
+      } else if (lowerCombo.includes("industrial") || lowerCombo.includes("hala") || lowerCombo.includes("depozit")) {
+        categoria = "Spatiu Industrial";
       }
-      if (sellerPhone) {
-        enrichedText = `SELLER_PHONE: ${sellerPhone}\n\n` + enrichedText;
+
+      // 3. Price & Currency
+      let rawPriceNum = 0;
+      let currency = "EUR";
+      if (nextAdData?.price?.regularPrice?.value) {
+        rawPriceNum = Number(nextAdData.price.regularPrice.value);
+        const currSym = String(nextAdData.price.regularPrice.currencySymbol || "").toUpperCase();
+        currency = currSym.includes("LEI") || currSym.includes("RON") ? "RON" : "EUR";
+      } else if (jsonLdData?.offers?.price) {
+        rawPriceNum = Number(jsonLdData.offers.price);
+        currency = String(jsonLdData.offers.priceCurrency || "EUR").toUpperCase();
+      } else {
+        const priceRegex = /(?:pre[t\u021b]|chirie|\b)\s*[:\-–]?\s*(\d[\d\s.,]{1,9})\s*(€|eur|euro|ron|lei)\b/i;
+        const pMatch = text.match(priceRegex) || title.match(/(\d[\d\s.,]{1,9})\s*(€|eur|euro|ron|lei)\b/i);
+        if (pMatch) {
+          rawPriceNum = parseInt(pMatch[1].replace(/[^0-9]/g, ""), 10) || 0;
+          const currStr = pMatch[2].toLowerCase();
+          currency = currStr.includes("ron") || currStr.includes("lei") ? "RON" : "EUR";
+        }
       }
+      const formattedPrice = rawPriceNum > 0 
+        ? `${rawPriceNum.toLocaleString("ro-RO")} ${currency}${transactionType === "Închiriere" ? " / lună" : ""}` 
+        : "N/A";
+
+      // 4. City & Zone
+      let oras = "București";
+      let zona = "";
+      if (nextAdData?.location?.city?.name) oras = nextAdData.location.city.name;
+      if (nextAdData?.location?.district?.name) zona = nextAdData.location.district.name;
+      
+      if (!zona) {
+        const secMatch = (title + " " + text).match(/Sector\s*[1-6]/i);
+        if (secMatch) {
+          zona = secMatch[0];
+        } else {
+          const commonZones = [
+            "Pipera", "Floreasca", "Dorobanti", "Aviatiei", "Baneasa", "Militari", "Drumul Taberei", 
+            "Titan", "Dristor", "Vitan", "Unirii", "Universitate", "Victoriei", "Tineretului", 
+            "Berceni", "Pantelimon", "Colentina", "Tei", "Crangasi", "Grozavesti", "Cotroceni"
+          ];
+          for (const z of commonZones) {
+            if (lowerCombo.includes(z.toLowerCase())) {
+              zona = z;
+              break;
+            }
+          }
+        }
+      }
+      if (!zona) zona = oras;
+
+      // 5. Specs (Surface, Rooms, Floor, Heating, Furnished)
+      let suprafataUtila = "";
+      let camere = "";
+      let etaj = "";
+      let anConstructie = "";
+      let compartimentare = "Decomandat";
+      let sistemIncalzire: string[] = ["Centrala proprie"];
+      let climatizare: string[] = [];
+      let mobilat = "Complet";
+
+      if (Array.isArray(nextAdData?.parameters)) {
+        for (const p of nextAdData.parameters) {
+          if (p.key === "m") suprafataUtila = String(p.value || "");
+          if (p.key === "rooms_num") camere = String(p.value || "");
+          if (p.key === "floor_select") etaj = String(p.value || "");
+          if (p.key === "build_year") anConstructie = String(p.value || "");
+          if (p.key === "furniture") mobilat = String(p.value || "Complet");
+        }
+      }
+
+      if (!suprafataUtila) {
+        const sMatch = text.match(/(?:suprafa[t\u021b\u0163]?[a\u0103]?\s*util[a\u0103]?|s\s*util[a\u0103]?|utila)\s*[:\-–]?\s*(\d+(?:[.,]\d+)?)\s*(?:mp|m2|m\u00b2)/i);
+        if (sMatch) suprafataUtila = sMatch[1].replace(",", ".");
+      }
+      if (!camere) {
+        const cMatch = text.match(/(?:num[a\u0103]r\s*camere|camere|nr\s*camere)\s*[:\-–]?\s*(\d+)/i) || title.match(/(\d+)\s*camere/i);
+        if (cMatch) camere = cMatch[1];
+        else if (lowerCombo.includes("garsonier") || lowerCombo.includes("studio")) camere = "1";
+        else camere = "2";
+      }
+      if (!etaj) {
+        const eMatch = text.match(/(?:etaj|etajul)\s*[:\-–]?\s*(parter|demisol|mansarda|\d+\/\d+|\d+)/i);
+        if (eMatch) etaj = eMatch[1];
+        else etaj = "1";
+      }
+      if (!anConstructie) {
+        const aMatch = text.match(/(?:an\s*construc[t\u021b]ie|construit\s*[îi]n|an\s*bloc)\s*[:\-–]?\s*(\d{4})/i);
+        if (aMatch) anConstructie = aMatch[1];
+      }
+
+      const numUtila = parseFloat(suprafataUtila) || 55;
+      const mult = (categoria === "Apartament" || categoria === "Casa/Vila") ? 1.2 : 1.1;
+      const suprafataConstruita = Math.round(numUtila * mult).toString();
+
+      if (lowerCombo.includes("centrala proprie") || lowerCombo.includes("centrală proprie")) {
+        sistemIncalzire = ["Centrala proprie"];
+      } else if (lowerCombo.includes("termoficare") || lowerCombo.includes("centralizat") || lowerCombo.includes("radet")) {
+        sistemIncalzire = ["Termoficare"];
+      }
+
+      if (lowerCombo.includes("aer conditionat") || lowerCombo.includes("aer condiționat") || lowerCombo.includes("climatizare")) {
+        climatizare = ["Aer conditionat"];
+      }
+
+      if (lowerCombo.includes("semidecomandat")) compartimentare = "Semidecomandat";
+      else if (lowerCombo.includes("open space") || lowerCombo.includes("openspace")) compartimentare = "Open space";
+      else if (lowerCombo.includes("circular")) compartimentare = "Circular";
+      else if (lowerCombo.includes("nedecomandat")) compartimentare = "Nedecomandat";
+      else compartimentare = "Decomandat";
+
+      if (lowerCombo.includes("nemobilat")) mobilat = "Nemobilat";
+      else if (lowerCombo.includes("partial mobilat")) mobilat = "Partial";
+
+      // 6. Original Description
+      let rawDescription = "";
+      if (nextAdData?.description) {
+        rawDescription = convert(nextAdData.description, { wordwrap: false });
+      } else {
+        const descSelectors = [
+          '[data-cy="ad_description"]', 
+          '[data-testid="description-section"]', 
+          '.offer-description', 
+          '#descriere', 
+          '.descriptioncontent', 
+          '.ad-description'
+        ];
+        for (const sel of descSelectors) {
+          const htmlDesc = $(sel).html();
+          if (htmlDesc) {
+            rawDescription = convert(htmlDesc, { wordwrap: false });
+            break;
+          }
+        }
+        if (!rawDescription) {
+          rawDescription = text.substring(0, 3000);
+        }
+      }
+
+      // Clean Title
+      let cleanTitle = title.replace(/\s*[-|•]\s*(OLX\.ro|Storia\.ro|Imobiliare\.ro|Publi24\.ro).*$/i, "").trim();
+      if (!cleanTitle || cleanTitle === "No title found") {
+        cleanTitle = `${categoria} ${camere} camere | ${zona} | ${formattedPrice}`;
+      }
+
+      // 7. Full baseline CRM Data object - all photos start in 'alteSpatii' for manual slot moving!
+      const crmData = {
+        detaliiGenerale: {
+          stadiu: "Activ - Hot",
+          tranzactie: transactionType,
+          categoria: categoria,
+          proprietar: sellerName || "Nespecificat",
+          contacteAditionale: sellerPhone || "Nespecificat",
+          ansambluRezidential: "",
+          localizare: {
+            oras: oras,
+            zona: [zona],
+            strada: "",
+            numar: "",
+            bloc: "",
+            scara: "",
+            apartament: "",
+            puncteInteres: [],
+            imprejurimi: []
+          },
+          memoPrivat: ""
+        },
+        caracteristici: {
+          detalii: {
+            tipCasa: "",
+            tipApartament: categoria === "Apartament" ? "Standard" : "",
+            compartimentare: compartimentare,
+            confort: "1",
+            destinatie: "Rezidential",
+            camere: String(camere),
+            bucatarii: "1",
+            dormitoare: String(Math.max(1, parseInt(camere) - 1 || 1)),
+            bai: "1",
+            balcoane: "0",
+            terase: "0",
+            etaj: String(etaj),
+            orientare: "",
+            parcari: "0",
+            garaje: "0",
+            checkList: []
+          },
+          suprafete: {
+            utila: String(suprafataUtila || numUtila),
+            amprenta: "",
+            construita: suprafataConstruita,
+            utilaTotala: String(suprafataUtila || numUtila),
+            balcoane: "0",
+            terase: "0",
+            gradina: "0",
+            teren: "0",
+            terenLiber: "0",
+            frontStradal: "",
+            vitrina: "",
+            numarFronturi: "",
+            numarTerase: "0",
+            numarBalcoane: "0"
+          },
+          alteDetalii: {
+            stadiuConstructie: "Finalizata",
+            structura: "Beton",
+            tipImobil: categoria === "Casa/Vila" ? "Casa/Vila" : "Bloc",
+            riscSeismic: "",
+            anConstructie: String(anConstructie || ""),
+            anRenovare: "",
+            inaltime: ""
+          },
+          energetica: {
+            clasa: "",
+            consumAnual: "",
+            emisiiCO2: "",
+            consumRegenerabile: ""
+          }
+        },
+        utilitati: {
+          general: ["Curent", "Apa", "Canalizare", "Gaz"],
+          sistemIncalzire: sistemIncalzire,
+          climatizare: climatizare,
+          finisaje: {
+            stare: ["Buna"],
+            izolatii: ["Exterior"],
+            pereti: ["Vopsea lavabila", "Faianta"],
+            podele: ["Parchet", "Gresie"],
+            ferestre: ["PVC"],
+            jaluzele: [],
+            rulouri: [],
+            usaIntrare: ["Metal"],
+            usiInterior: ["Lemn"],
+            acoperis: []
+          },
+          dotari: {
+            mobilat: mobilat,
+            spatiiAditionale: [],
+            bucatarie: ["Mobilata", "Utilata"],
+            contorizare: ["Apometre", "Contor curent electric", "Contor gaz"],
+            electrocasnice: ["Frigider", "Masina de spalat rufe", "Aragaz"],
+            imobil: ["Interfon"],
+            diverse: [],
+            servicii: [],
+            amenajareStrazi: ["Asfaltate", "Iluminat stradal"],
+            priveliste: ["Spre oras"]
+          }
+        },
+        pret: {
+          detalii: {
+            pret: formattedPrice,
+            moneda: currency,
+            pretMp: "",
+            ultimPret: "",
+            checkList: [],
+            plataAcceptata: "Cash sau Credit",
+            pretGaraj: "",
+            pretParcare: "",
+            avans: "",
+            garantie: transactionType === "Închiriere" ? "1 lună garanție" : "",
+            tvaIncluded: false,
+            notePrivate: ""
+          },
+          comisioane: {
+            comisionCumparatorProcent: "50%",
+            comisionCumparatorValoare: "",
+            comisionProprietarProcent: "50%",
+            comisionProprietarValoare: "",
+            colaborare: false
+          },
+          contract: {
+            tip: "Intermediere",
+            semnat: "Nu",
+            nr: "",
+            dataSemnare: "",
+            dataExpirare: ""
+          }
+        },
+        descriere: {
+          titlu: cleanTitle,
+          continut: rawDescription,
+          disponibilitate: "Imediat",
+          video: "",
+          turVirtual: ""
+        },
+        imagini: {
+          living: [],
+          bucatarie: [],
+          camera: [],
+          baie: [],
+          alteSpatii: uniqueImages.map(img => ({ original: img }))
+        }
+      };
 
       res.json({
-        title,
-        text: enrichedText,
-        images: uniqueImages
+        title: cleanTitle,
+        price: formattedPrice,
+        zone: zona,
+        oras: oras,
+        ownerName: sellerName,
+        ownerPhone: sellerPhone,
+        transactionType: transactionType,
+        categoria: categoria,
+        description: rawDescription,
+        specs: {
+          utila: suprafataUtila || numUtila,
+          construita: suprafataConstruita,
+          camere: camere,
+          etaj: etaj,
+          an: anConstructie,
+          compartimentare: compartimentare,
+          sistemIncalzire: sistemIncalzire,
+          mobilat: mobilat
+        },
+        images: uniqueImages,
+        coverImage: uniqueImages.length > 0 ? uniqueImages[0] : null,
+        crmData: crmData,
+        text: text.substring(0, 8000)
       });
-
-      // Background pre-warming (asynchronous and non-blocking)
-      setTimeout(() => {
-        console.log(`[Cache Pre-warming] Starting background watermark cleaning for ${uniqueImages.length} images...`);
-        // Process top 15 images to avoid overwhelming Gemini API rate limits
-        const imagesToPrewarm = uniqueImages.slice(0, 15);
-        
-        const prewarmImage = async (imgUrl: string) => {
-          try {
-            if (imageCleanCache.has(imgUrl)) return;
-            
-            console.log(`[Cache Pre-warming] Pre-warming: ${imgUrl}`);
-            const response = await axios.get(imgUrl, {
-              responseType: "arraybuffer",
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-                "Referer": "https://www.google.com/"
-              },
-              timeout: 15000,
-              validateStatus: (status) => status < 600
-            });
-            
-            if (response.status >= 400) return;
-            
-            const rawContentType = response.headers["content-type"];
-            const contentType = Array.isArray(rawContentType) 
-              ? rawContentType[0] 
-              : (typeof rawContentType === "string" ? rawContentType : "image/jpeg");
-              
-            if (!contentType.startsWith("image/") || contentType.includes("svg")) return;
-            
-            const cleanedBuffer = await cleanImageWatermarks(response.data, contentType, imgUrl);
-            addToImageCache(imgUrl, {
-              mimeType: contentType,
-              data: cleanedBuffer
-            });
-            console.log(`[Cache Pre-warming] Successfully pre-warmed: ${imgUrl}`);
-          } catch (err: any) {
-            console.warn(`[Cache Pre-warming] Note: pre-warming skipped for ${imgUrl.substring(0, 80)}:`, err?.message || "");
-          }
-        };
-        
-        // Process them in sequence to avoid rate limits
-        (async () => {
-          for (const imgUrl of imagesToPrewarm) {
-            await prewarmImage(imgUrl);
-          }
-        })();
-      }, 100);
-
       return; // Success!
     } catch (error: any) {
       console.error(`Attempt ${i+1} failed:`, error.message);
@@ -1395,8 +1757,9 @@ async function startServer() {
         }
 
         let finalData = response.data;
-        if (req.query.noclean !== "true") {
-          // Clean watermark
+        // Watermark detection with Gemini is disabled by default to eliminate budget spend on image views.
+        // It runs ONLY if explicitly requested via ?clean=true
+        if (req.query.clean === "true") {
           finalData = await cleanImageWatermarks(response.data, contentType, cleanUrl);
           addToImageCache(cleanUrl, { mimeType: contentType, data: finalData });
         }

@@ -25,12 +25,24 @@ export type LeadStatus =
   | 'Sterse' 
   | 'AreInteres'
   | 'Noua' 
+  | 'Prospectare'
+  | 'Colaborare'
   | 'Calificare' 
   | 'Matching' 
   | 'Vizionare' 
   | 'Ofertare' 
   | 'Antecontract' 
   | 'Contract';
+
+export const PROPRIETATI_STATUSES: LeadStatus[] = [
+  'Noua',
+  'Prospectare',
+  'Colaborare',
+  'Vizionare',
+  'Ofertare',
+  'Antecontract',
+  'Contract'
+];
 
 export const CERERI_STATUSES: LeadStatus[] = [
   'Noua',
@@ -42,22 +54,53 @@ export const CERERI_STATUSES: LeadStatus[] = [
   'Contract'
 ];
 
-export const isCerereLead = (l?: { status?: string; title?: string; notes?: string } | null): boolean => {
+export const isCerereLead = (l?: { status?: string; title?: string; notes?: string; propertyId?: string } | null): boolean => {
   if (!l) return false;
-  if (l.status && (CERERI_STATUSES.includes(l.status as LeadStatus) || l.status === 'AreInteres')) return true;
+  if (l.propertyId && (l.propertyId.startsWith('P') || l.propertyId.startsWith('L'))) return false;
+  if (l.propertyId && l.propertyId.startsWith('R')) return true;
   if (l.title && l.title.toLowerCase().startsWith('cerere')) return true;
-  if (l.notes && l.notes.toLowerCase().includes('cerere')) return true;
+  if (l.status === 'AreInteres' || l.status === 'Calificare' || l.status === 'Matching') return true;
+  if (l.notes && (l.notes.toLowerCase().includes('cerințe cerere') || l.notes.toLowerCase().includes('cerere:'))) return true;
   return false;
 };
 
 export const mapStatus = (status: string): LeadStatus => {
   if (status === 'Lead-uri' || status === 'Intrata') return 'Nevalidata';
-  if (status === 'Prospectare') return 'Calificata';
-  if (status === 'Publicare') return 'Activa';
+  if (status === 'Publicare') return 'Noua';
   if (status === 'Cerere') return 'Noua';
-  if (status === 'Vizionare') return 'Vizionare';
-  if (status === 'Semnare') return 'Contract';
   return status as LeadStatus;
+};
+
+export type LeadRole = 'Proprietar' | 'Chirias' | 'Cumparator';
+
+export const getLeadRole = (lead: Partial<Lead> | null | undefined): LeadRole => {
+  if (!lead) return 'Proprietar';
+
+  const explicit = (lead as any).leadType || (lead as any).role || (lead as any).clientType || (lead as any).tipLead;
+  if (explicit) {
+    const norm = String(explicit).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (norm.includes('proprietar') || norm === 'owner') return 'Proprietar';
+    if (norm.includes('chirias') || norm === 'renter') return 'Chirias';
+    if (norm.includes('cumparator') || norm === 'buyer') return 'Cumparator';
+  }
+
+  // If Cerere
+  if (isCerereLead(lead)) {
+    const isRent = String(lead.transactionType || '').toLowerCase().includes('inchiri');
+    return isRent ? 'Chirias' : 'Cumparator';
+  }
+
+  // Check text hints in title or notes
+  const textCombo = `${lead.title || ''} ${lead.notes || ''}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (textCombo.includes('chirias') || textCombo.includes('caut chirie') || textCombo.includes('caut apartament de inchiriat') || textCombo.includes('chirie client')) {
+    return 'Chirias';
+  }
+  if (textCombo.includes('cumparator') || textCombo.includes('caut sa cumpar') || textCombo.includes('cumparare client') || textCombo.includes('buget cumparare')) {
+    return 'Cumparator';
+  }
+
+  // Default for property leads (scraped ads, owners)
+  return 'Proprietar';
 };
 
 export interface Lead {
@@ -72,6 +115,7 @@ export interface Lead {
   transactionType: "Vânzare" | "Închiriere";
   categoria: string;
   status: LeadStatus;
+  leadType?: LeadRole | string;
   coverImage?: string;
   notes?: string;
   extractedData?: ExtractionResult;
@@ -88,7 +132,7 @@ export const leadsService = {
       let propertyId = leadData.propertyId;
       if (!propertyId) {
         const isCerere = isCerereLead(leadData);
-        const isProperty = leadData.status === 'Activa' || leadData.status === 'InNegociere' || leadData.status === 'Finalizata' || leadData.status === 'Arhiva';
+        const isProperty = PROPRIETATI_STATUSES.includes(leadData.status) || leadData.status === 'Activa' || leadData.status === 'InNegociere' || leadData.status === 'Finalizata' || leadData.status === 'Arhiva';
         
         if (isCerere) {
           propertyId = await entityIdService.getNextId('cerere');
@@ -124,7 +168,7 @@ export const leadsService = {
       };
 
       // When promoted to active Property, assign P ID if it only had an L ID or no ID
-      if (newStatus === 'Activa' || newStatus === 'InNegociere' || newStatus === 'Finalizata') {
+      if (PROPRIETATI_STATUSES.includes(newStatus) || newStatus === 'Activa' || newStatus === 'InNegociere' || newStatus === 'Finalizata') {
         const snap = await getDoc(leadRef);
         if (snap.exists()) {
           const currentData = snap.data();

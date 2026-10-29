@@ -149,14 +149,17 @@ export const PersonalView: React.FC<PersonalViewProps> = ({
   const filteredMembers = useMemo(() => {
     return personal.filter((m, idx) => {
       // Category / Status Filter
-      if (selectedFilter === "Activi" && m.status !== "Activ") return false;
-      if (selectedFilter === "Inactivi" && m.status !== "Inactiv") return false;
-      if (selectedFilter === "Agenți" && !m.role.toLowerCase().includes("agent")) return false;
-      if (selectedFilter === "Brokeri" && !m.role.toLowerCase().includes("broker")) return false;
-      if (selectedFilter === "Management" && 
+      if (selectedFilter === "Administratori" && !m.role.toLowerCase().includes("admin")) return false;
+      if (selectedFilter === "Manageri" && 
           !m.role.toLowerCase().includes("manager") && 
           !m.role.toLowerCase().includes("leader") && 
-          !m.role.toLowerCase().includes("administrator")) {
+          !m.role.toLowerCase().includes("director") && 
+          !m.role.toLowerCase().includes("coordonator")) {
+        return false;
+      }
+      if (selectedFilter === "Agenți" && 
+          !m.role.toLowerCase().includes("agent") && 
+          !m.role.toLowerCase().includes("broker")) {
         return false;
       }
 
@@ -225,17 +228,23 @@ export const PersonalView: React.FC<PersonalViewProps> = ({
 
       {/* Sub-header Filter Tabs */}
       <div className="bg-white border-b border-gray-200 shrink-0 px-6 h-[40px] flex items-center gap-2 overflow-x-auto no-scrollbar">
-        {["Toți", "Agenți", "Brokeri", "Management", "Activi", "Inactivi"].map((f) => {
+        {["Toți", "Administratori", "Manageri", "Agenți"].map((f) => {
           let count = personal.length;
-          if (f === "Activi") count = personal.filter(p => p.status === "Activ").length;
-          else if (f === "Inactivi") count = personal.filter(p => p.status === "Inactiv").length;
-          else if (f === "Agenți") count = personal.filter(p => p.role.toLowerCase().includes("agent")).length;
-          else if (f === "Brokeri") count = personal.filter(p => p.role.toLowerCase().includes("broker")).length;
-          else if (f === "Management") count = personal.filter(p => 
-            p.role.toLowerCase().includes("manager") || 
-            p.role.toLowerCase().includes("leader") || 
-            p.role.toLowerCase().includes("administrator")
-          ).length;
+          if (f === "Administratori") {
+            count = personal.filter(p => p.role.toLowerCase().includes("admin")).length;
+          } else if (f === "Manageri") {
+            count = personal.filter(p => 
+              p.role.toLowerCase().includes("manager") || 
+              p.role.toLowerCase().includes("leader") || 
+              p.role.toLowerCase().includes("director") ||
+              p.role.toLowerCase().includes("coordonator")
+            ).length;
+          } else if (f === "Agenți") {
+            count = personal.filter(p => 
+              p.role.toLowerCase().includes("agent") || 
+              p.role.toLowerCase().includes("broker")
+            ).length;
+          }
 
           return (
             <button
@@ -285,7 +294,7 @@ export const PersonalView: React.FC<PersonalViewProps> = ({
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  <th className="py-3 px-4 w-28">ID Personal</th>
+                  <th className="py-3 px-4 w-28">ID</th>
                   <th className="py-3 px-4">Nume și Prenume</th>
                   <th className="py-3 px-4">Funcție / Rol</th>
                   <th className="py-3 px-4">Telefon</th>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Phone, User as UserIcon, MapPin, Tag, Users, Hash, ChevronRight } from "lucide-react";
-import { Lead } from "../services/leadsService";
+import { Lead, getLeadRole } from "../services/leadsService";
 import { Contact } from "../services/contactsService";
 import { motion } from "motion/react";
 
@@ -19,6 +19,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({
   onContactClick,
   onQuickViewClick
 }) => {
+  const role = getLeadRole(lead);
   const images = lead.extractedData?.crmData?.imagini;
   const categoria = String(lead.extractedData?.crmData?.detaliiGenerale?.categoria || '').toLowerCase();
   const isResidential = !categoria.includes('comercial') && 
@@ -60,11 +61,22 @@ export const LeadCard: React.FC<LeadCardProps> = ({
         <h3 className="text-[13px] font-semibold text-gray-900 leading-snug line-clamp-1 flex-1 pr-2">
           {lead.title}
         </h3>
-        {lead.propertyId && (
-          <span className="text-[11px] font-mono text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded shrink-0">
-            #{lead.propertyId}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+            role === 'Proprietar' 
+              ? 'bg-amber-50 text-amber-700 border-amber-200' 
+              : role === 'Chirias' 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+          }`}>
+            {role === 'Chirias' ? 'Chiriaș' : (role === 'Cumparator' ? 'Cumpărător' : 'Proprietar')}
           </span>
-        )}
+          {lead.propertyId && (
+            <span className="text-[11px] font-mono text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded">
+              #{lead.propertyId}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Property Info Area */}

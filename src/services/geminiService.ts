@@ -197,10 +197,39 @@ export async function extractData(
     body: JSON.stringify({ content, title, imageUrls, propertyId, propertyUrl })
   });
 
+  return response.json();
+}
+
+export interface AITextParams {
+  category: string;
+  transactionType: string;
+  zone: string;
+  price: string;
+  specs?: any;
+  originalTitle?: string;
+  originalDescription?: string;
+  propertyId?: string;
+}
+
+export interface AITextResult {
+  title: string;
+  description: string;
+}
+
+export async function generateAIText(params: AITextParams): Promise<AITextResult> {
+  const response = await fetch("/api/generate-ai-text", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(params)
+  });
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Eroare la extragerea datelor complete de la server");
+    throw new Error(errorData.error || "Eroare la generarea textului cu AI");
   }
 
   return response.json();
 }
+

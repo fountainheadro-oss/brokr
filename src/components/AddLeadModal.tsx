@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Globe, Zap, Loader2, Building2 } from "lucide-react";
 import { leadsService } from "../services/leadsService";
-import { extractBasicData } from "../services/geminiService";
 import { notificationsService } from "../services/notificationsService";
 import toast from "react-hot-toast";
 
@@ -13,6 +12,7 @@ interface AddLeadModalProps {
 
 export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) => {
   const [url, setUrl] = useState("");
+  const [leadRole, setLeadRole] = useState<'Proprietar' | 'Chirias' | 'Cumparator'>('Proprietar');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,32 +53,33 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
         throw new Error("Server returned an invalid response (HTML instead of JSON)");
       }
 
-      const { text, title, images } = await crawlRes.json();
-      const coverImage = images && images.length > 0 ? images[0] : null;
+      const crawlData = await crawlRes.json();
+      const { title, price, zone, ownerName, ownerPhone, transactionType, categoria, crmData, coverImage } = crawlData;
 
-      // 2. Gemini basic extraction
-      setStatus("Analiză Gemini (AI)...");
-      const extractionResult = await extractBasicData(text, title);
-
-      // 3. Save to Firestore
+      // 2. Save directly using crawler-extracted data (Zero AI spend, instant & robust)
       setStatus("Salvare...");
       await leadsService.addLead({
         url: url.trim(),
-        title: extractionResult.title || title || "Fără titlu",
-        zone: extractionResult.zone || "Nespecificat",
-        price: extractionResult.price || "N/A",
-        ownerName: extractionResult.ownerName || "Nespecificat",
-        ownerPhone: extractionResult.ownerPhone || "Nespecificat",
-        transactionType: extractionResult.transactionType || "Vânzare",
-        categoria: extractionResult.categoria || "Alte tipuri",
+        title: title || "Fără titlu",
+        zone: zone || "Nespecificat",
+        price: price || "N/A",
+        ownerName: ownerName || "Nespecificat",
+        ownerPhone: ownerPhone || "Nespecificat",
+        transactionType: (transactionType as any) || (leadRole === 'Chirias' ? 'Închiriere' : 'Vânzare'),
+        categoria: categoria || "Apartament",
         status: "Nevalidata",
-        coverImage,
-        extractedData: null
+        leadType: leadRole,
+        coverImage: coverImage || null,
+        extractedData: crmData ? {
+          crmData: crmData,
+          markdownMarketing: crmData.descriere?.continut || "",
+          summary: `${categoria || "Proprietate"} ${crmData.caracteristici?.detalii?.camere || "2"} camere în ${zone || "București"}, ${price || "N/A"}`
+        } : null
       });
 
       await notificationsService.addNotification({
         title: 'Proprietate Nouă Adăugată',
-        message: `Proprietatea din ${extractionResult.zone || "zonă nespecificată"} a fost adăugată cu succes.`,
+        message: `Proprietatea din ${zone || "zonă nespecificată"} a fost extrasă și adăugată cu succes.`,
         type: 'lead'
       });
 
@@ -128,7 +129,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
                 <Building2 size={18} />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Adaugă Proprietate Nouă</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Adaugă Imobil Nou</h3>
                 <p className="text-[11px] text-gray-500">Scanare și extragere automată date din URL</p>
               </div>
             </div>
@@ -143,6 +144,28 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 mb-1.5">
+                Tip Oportunitate / Lead
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['Proprietar', 'Chirias', 'Cumparator'] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setLeadRole(r)}
+                    className={`py-1.5 px-2 text-xs font-medium rounded-lg border text-center transition-all cursor-pointer ${
+                      leadRole === r
+                        ? "bg-[#051D35] text-white border-[#051D35] shadow-xs"
+                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {r === 'Chirias' ? 'Chiriaș' : (r === 'Cumparator' ? 'Cumpărător' : 'Proprietar')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-[11px] font-semibold text-gray-700 mb-1">
                 Link Anunț Imobiliar *
@@ -160,7 +183,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({ isOpen, onClose }) =
                 />
               </div>
               <p className="text-[11px] text-gray-400 mt-1.5">
-                AI-ul va extrage automat detaliile, imaginile, prețul și contactul proprietarului.
+                Crawlerul va extrage automat detaliile, imaginile, prețul și contactul.
               </p>
             </div>
 

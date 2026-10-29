@@ -689,11 +689,13 @@ export const ImageCard = ({
   imageData, 
   category, 
   onClick,
+  onMoveCategory,
   noHoverEffect 
 }: { 
   imageData: { original: string }, 
   category: string, 
   onClick?: () => void,
+  onMoveCategory?: (targetCategory: string) => void,
   noHoverEffect?: boolean
 }) => {
   const getProxiedUrl = (url: string) => {
@@ -722,33 +724,57 @@ export const ImageCard = ({
 
   return (
     <div 
-      onClick={onClick}
-      className={`relative group rounded-[8px] overflow-hidden border border-gray-100 aspect-video cursor-pointer bg-gray-50`}
+      className="relative group rounded-[8px] overflow-hidden border border-gray-200 bg-white flex flex-col shadow-xs"
     >
-      {imageData.original ? (
-        <img 
-          src={proxiedUrl} 
-          alt={category} 
-          className={`w-full h-full object-cover transition-transform duration-500 ${noHoverEffect ? '' : 'group-hover:scale-105'}`} 
-          referrerPolicy="no-referrer" 
-          draggable="true"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-          No Image
-        </div>
-      )}
-      {!noHoverEffect && (
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-          <button
-            onClick={handleDownload}
-            className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-gray-900 hover:bg-white transition-all transform scale-90 group-hover:scale-100 shadow-lg"
-            title="Descarcă imagine"
-          >
-            <Download size={18} />
-          </button>
-        </div>
-      )}
+      <div 
+        onClick={onClick}
+        className="relative aspect-video cursor-pointer bg-gray-100 overflow-hidden"
+        title="Click pentru a vizualiza în format original"
+      >
+        {imageData.original ? (
+          <img 
+            src={proxiedUrl} 
+            alt={category} 
+            className={`w-full h-full object-cover transition-transform duration-300 ${noHoverEffect ? '' : 'group-hover:scale-105'}`} 
+            referrerPolicy="no-referrer" 
+            draggable="true"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs">
+            No Image
+          </div>
+        )}
+      </div>
+
+      {/* Control bar for slot relocation & download */}
+      <div className="p-1.5 bg-gray-50/90 border-t border-gray-100 flex items-center justify-between gap-1">
+        {onMoveCategory ? (
+          <div className="flex items-center gap-1 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+            <span className="text-[10px] text-gray-400 font-medium shrink-0">Slot:</span>
+            <select
+              value={category}
+              onChange={(e) => onMoveCategory(e.target.value)}
+              className="w-full text-[11px] font-medium bg-white border border-gray-200 rounded px-1.5 py-0.5 text-gray-700 hover:border-gray-300 focus:outline-none cursor-pointer truncate"
+            >
+              <option value="living">Living</option>
+              <option value="bucatarie">Bucătărie</option>
+              <option value="camera">Dormitor / Cameră</option>
+              <option value="baie">Baie</option>
+              <option value="alteSpatii">Alte Spații</option>
+            </select>
+          </div>
+        ) : (
+          <span className="text-[10px] text-gray-400 capitalize truncate">{category}</span>
+        )}
+
+        <button
+          onClick={handleDownload}
+          className="p-1 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors shrink-0"
+          title="Descarcă imagine"
+        >
+          <Download size={13} />
+        </button>
+      </div>
     </div>
   );
 };

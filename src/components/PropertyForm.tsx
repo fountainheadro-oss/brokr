@@ -1,5 +1,6 @@
-import React from 'react';
-import { CRMData } from '../services/geminiService';
+import React, { useState } from 'react';
+import { CRMData, generateAIText } from '../services/geminiService';
+import { toast } from 'react-hot-toast';
 import { 
   FormLabel, 
   FormInput, 
@@ -15,7 +16,7 @@ import {
   PromoCard,
   EditableMultiSelect
 } from './FormElements';
-import { Download, FileText, Search, Zap } from 'lucide-react';
+import { Download, FileText, Search, Zap, Sparkles, Loader2, ArrowRightLeft } from 'lucide-react';
 
 import { 
   STADIU_OPTIONS, 
@@ -1745,8 +1746,54 @@ export const PretSection = ({ data, tranzactie, onUpdate }: { data: any, tranzac
   );
 };
 
-export const DescriereSection = ({ data, onUpdate, fullCRMData }: { data: any, onUpdate?: (path: string, val: any) => void, fullCRMData?: any }) => {
+export const DescriereSection = ({ 
+  data, 
+  onUpdate, 
+  fullCRMData, 
+  propertyId 
+}: { 
+  data: any, 
+  onUpdate?: (path: string, val: any) => void, 
+  fullCRMData?: any, 
+  propertyId?: string 
+}) => {
   const safeData = data || {};
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  const handleGenerateWithAI = async () => {
+    setIsAiGenerating(true);
+    try {
+      const category = fullCRMData?.detaliiGenerale?.categoria || "Apartament";
+      const transactionType = fullCRMData?.detaliiGenerale?.tranzactie || "Vânzare";
+      const zoneVal = fullCRMData?.detaliiGenerale?.localizare?.zona;
+      const zone = Array.isArray(zoneVal) ? zoneVal[0] : (zoneVal || "București");
+      const price = fullCRMData?.pret?.detalii?.pret || "";
+      
+      const res = await generateAIText({
+        category,
+        transactionType,
+        zone,
+        price,
+        specs: fullCRMData?.caracteristici || {},
+        originalTitle: safeData.titlu || "",
+        originalDescription: safeData.continut || "",
+        propertyId: propertyId || ""
+      });
+
+      if (res.title) {
+        onUpdate?.('crmData.descriere.titlu', res.title);
+      }
+      if (res.description) {
+        onUpdate?.('crmData.descriere.continut', res.description);
+      }
+      toast.success("Titlul și descrierea au fost generate cu succes prin AI!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Eroare la generarea textului cu AI");
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
   
   const generateTemplateTitle = () => {
     if (!fullCRMData) return;
@@ -1942,6 +1989,39 @@ export const DescriereSection = ({ data, onUpdate, fullCRMData }: { data: any, o
 
   return (
     <div className="space-y-5">
+      {/* On-demand AI Title & Description Generator */}
+      <div className="bg-amber-50/60 border border-amber-200/80 rounded-lg p-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-md bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+            <Sparkles size={16} />
+          </div>
+          <div>
+            <h4 className="text-xs font-semibold text-gray-900">Generare Text Marketing cu AI (La cerere)</h4>
+            <p className="text-[11px] text-gray-500">
+              Apasă doar dacă dorești să generezi automat un titlu sub 70 caractere și descrierea conform regulilor oficiale.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleGenerateWithAI}
+          disabled={isAiGenerating}
+          className="px-3.5 py-1.5 bg-[#051D35] hover:bg-[#0a2b4a] text-white text-xs font-medium rounded-md transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50 shadow-xs cursor-pointer"
+        >
+          {isAiGenerating ? (
+            <>
+              <Loader2 size={13} className="animate-spin text-amber-400" />
+              <span>Se generează...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles size={13} className="text-amber-400 fill-amber-400" />
+              <span>Generează cu AI</span>
+            </>
+          )}
+        </button>
+      </div>
+
       <div className="mb-5">
          <div className="flex items-center justify-between mb-3">
            <SectionHeader>Titlu</SectionHeader>
@@ -3166,41 +3246,106 @@ export const ImaginiSection = ({ data, onUpdate, fullCRMData, propertyId }: { da
     firstImage = "";
   }
 
+  const categoryTitles: Record<string, string> = {
+    living: 'Living',
+    bucatarie: 'Bucătărie',
+    camera: 'Dormitor / Cameră',
+    baie: 'Baie',
+    alteSpatii: 'Alte Spații / Inbox Fotografii'
+  };
+
+  const categoriesConfig: { id: 'living' | 'bucatarie' | 'camera' | 'baie' | 'alteSpatii'; label: string; icon: string }[] = [
+    { id: 'living', label: 'Living', icon: '🛋️' },
+    { id: 'bucatarie', label: 'Bucătărie', icon: '🍳' },
+    { id: 'camera', label: 'Dormitor / Cameră', icon: '🛏️' },
+    { id: 'baie', label: 'Baie', icon: '🚿' },
+    { id: 'alteSpatii', label: 'Alte Spații / Inbox Fotografii', icon: '📁' },
+  ];
+
+  const handleMoveImage = (imageUrl: string, fromCat: string, toCat: string) => {
+    if (fromCat === toCat) return;
+    const currentImagini: Record<string, { original: string }[]> = {
+      living: [...(safeData.living || [])],
+      bucatarie: [...(safeData.bucatarie || [])],
+      camera: [...(safeData.camera || [])],
+      baie: [...(safeData.baie || [])],
+      alteSpatii: [...(safeData.alteSpatii || [])]
+    };
+
+    const fromArr = currentImagini[fromCat] || [];
+    const idx = fromArr.findIndex(i => i.original === imageUrl);
+    if (idx === -1) return;
+
+    const [item] = fromArr.splice(idx, 1);
+    (currentImagini[toCat] ||= []).push(item);
+
+    onUpdate?.('crmData.imagini', currentImagini);
+    toast.success(`Imagine mutată în ${categoryTitles[toCat] || toCat}`);
+  };
+
   return (
-    <div className="space-y-5">
-      {categoriesOrder.map((category) => {
-        const images = safeData[category] || [];
-        const shouldShow = images.length > 0;
+    <div className="space-y-6">
+      {/* Information Header */}
+      <div className="bg-blue-50/60 border border-blue-200/80 rounded-lg p-3 flex items-center justify-between gap-3 text-xs text-blue-900">
+        <div className="flex items-center gap-2">
+          <ArrowRightLeft size={16} className="text-blue-600 shrink-0" />
+          <span>
+            Clasificare manuală: fotografiile extrase sunt în <strong>Alte Spații / Inbox Fotografii</strong>. Poți selecta slotul dorit (Living, Bucătărie, Dormitor, Baie) din bara de control a fiecărei fotografii.
+          </span>
+        </div>
+      </div>
+
+      {categoriesConfig.map((cat) => {
+        const images = safeData[cat.id] || [];
         
-        return shouldShow && (
-          <div key={category} className="mb-10 last:mb-0">
-            <div className="flex items-center justify-between mb-5">
-              <h4 className="text-[14px] font-bold text-[--color-text-main] uppercase tracking-wider flex items-center gap-2">
-                {category === 'alteSpatii' ? 'ALTE SPAȚII' : category.replace(/([A-Z])/g, ' $1')}
-              </h4>
-              <button 
-                onClick={() => downloadAllInCategory(images, category)}
-                className="flex items-center gap-2 h-10 text-[12px] font-bold text-[--color-text-main] border border-[--color-border] hover:bg-gray-50 px-5 rounded-full transition-colors shadow-none"
-              >
-                <Download size={14} />
-                DESCARCĂ TOT
-              </button>
+        return (
+          <div key={cat.id} className="p-4 bg-gray-50/50 rounded-xl border border-gray-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base">{cat.icon}</span>
+                <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  {cat.label}
+                </h4>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 font-semibold">
+                  {images.length} {images.length === 1 ? 'poză' : 'poze'}
+                </span>
+              </div>
+              
+              {images.length > 0 && (
+                <button 
+                  onClick={() => downloadAllInCategory(images, cat.id)}
+                  className="flex items-center gap-1.5 h-8 text-[11px] font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-100 px-3 rounded-md transition-colors shadow-2xs"
+                >
+                  <Download size={13} />
+                  DESCARCĂ TOT ({images.length})
+                </button>
+              )}
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-5">
-              {images.map((imageData: { original: string }, idx: number) => (
-                <ImageCard 
-                  key={idx} 
-                  imageData={imageData} 
-                  category={category} 
-                  onClick={() => {
-                    const proxied = `/api/proxy-image?url=${encodeURIComponent(imageData.original)}`;
-                    window.open(proxied, '_blank');
-                  }}
-                  noHoverEffect
-                />
-              ))}
-            </div>
+            {images.length === 0 ? (
+              <div className="py-5 px-4 border border-dashed border-gray-300 rounded-lg text-center bg-white/60">
+                <p className="text-xs font-medium text-gray-500">Slot gol: {cat.label}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Folosește selectorul „Slot” de pe o fotografie din alte secțiuni pentru a o muta aici.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {images.map((imageData: { original: string }, idx: number) => (
+                  <ImageCard 
+                    key={idx} 
+                    imageData={imageData} 
+                    category={cat.id}
+                    onMoveCategory={(targetCat) => handleMoveImage(imageData.original, cat.id, targetCat)}
+                    onClick={() => {
+                      const proxied = `/api/proxy-image?url=${encodeURIComponent(imageData.original)}`;
+                      window.open(proxied, '_blank');
+                    }}
+                    noHoverEffect
+                  />
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

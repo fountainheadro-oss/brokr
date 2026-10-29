@@ -113,7 +113,7 @@ export async function serverExtractBasicData(content: string, title: string): Pr
   CONȚINUT PAGINĂ:
   Titlu Original: "${title}"
   Conținut:
-  ${content.substring(0, 5000)}
+  ${content.substring(0, 3500)}
   
   --- REGULI STRICTE ---
   - NICIODATĂ nu include în titlu sau descriere numele vreunui complex rezidențial sau complex de blocuri/clădiri (ex: "Astorium", "Hills" etc.), numărul străzii, numărul de bloc, scara sau apartamentul, ori alte detalii de adresă poștală exactă. Folosește DOAR zona sau cartierul general.
@@ -127,7 +127,7 @@ export async function serverExtractBasicData(content: string, title: string): Pr
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: "gemini-3.1-flash-lite",
     contents: [{ text: prompt }],
     config: {
       responseMimeType: "application/json",
@@ -157,8 +157,8 @@ export async function serverExtractData(content: string, title: string, imageUrl
     throw new Error("GEMINI_API_KEY environment variable is missing on server");
   }
 
-  // Limit to first 20 images to avoid token/payload limits
-  const limitedUrls = imageUrls.slice(0, 20);
+  // Limit to first 5 images to dramatically reduce token and payload consumption while preserving key room identification
+  const limitedUrls = imageUrls.slice(0, 5);
   const imageParts = await Promise.all(limitedUrls.map(url => fileToGenerativePart(url)));
   const validImageParts = imageParts.filter(p => p !== null) as any[];
 
@@ -489,13 +489,13 @@ Condiții suplimentare:
   DATE DE ANALIZAT:
   Titlu Original: "${title}"
   Conținut:
-  ${content}
+  ${content.substring(0, 15000)}
   
   Returnează obiectul JSON conform schemei solicitate. COMPLETAREA TUTUROR CÂMPURILOR ESTE OBLIGATORIE DACĂ INFORMAȚIA EXISTĂ VIZUAL SAU ÎN TEXT.
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: "gemini-3.8-flash",
     contents: {
       parts: [
         ...validImageParts,

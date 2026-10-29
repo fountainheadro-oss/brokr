@@ -13,7 +13,7 @@ import { Lead, isCerereLead } from "../services/leadsService";
 import { Contact } from "../services/contactsService";
 import { PersonalMember } from "../services/personalService";
 
-export type NavSubItem = 'Lead-uri' | 'Cereri' | 'Proprietăți' | 'Clienți' | 'Contacte' | 'Personal';
+export type NavSubItem = 'Lead-uri' | 'Cereri' | 'Imobile' | 'Proprietăți' | 'Contacte' | 'Clienți' | 'Personal';
 export type NavTransactionType = 'Închiriere' | 'Vânzare';
 
 interface SidebarProps {
@@ -62,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (location.pathname !== '/') {
       navigate('/');
     }
-    const normalizedItem = subItem === 'Contacte' ? 'Clienți' : subItem;
+    const normalizedItem = subItem === 'Proprietăți' ? 'Imobile' : (subItem === 'Clienți' ? 'Contacte' : subItem);
     if (onSelectItem) {
       onSelectItem(normalizedItem);
     } else if (onSelectNav) {
@@ -73,8 +73,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Compute live item counts based on leads, contacts, and personal
   const counts = React.useMemo(() => {
     const isCerere = (l: Lead) => isCerereLead(l);
-    const isLeadItem = (l: Lead) => l.status === 'Nevalidata' || l.status === 'Calificata';
-    const isPropItem = (l: Lead) => !isCerere(l) && !isLeadItem(l) && l.status !== 'Sterse';
+    const isLeadItem = (l: Lead) => l.status !== 'Sterse';
+    const isPropItem = (l: Lead) => !isCerere(l) && l.status !== 'Nevalidata' && l.status !== 'Calificata' && l.status !== 'Sterse';
 
     return {
       leads: leads.filter(isLeadItem).length,
@@ -85,7 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
   }, [leads, contacts, personal]);
 
-  const isClientiActive = activeSubItem === 'Clienți' || activeSubItem === 'Contacte';
+  const isImobileActive = activeSubItem === 'Imobile' || activeSubItem === 'Proprietăți';
+  const isContacteActive = activeSubItem === 'Contacte' || activeSubItem === 'Clienți';
 
   return (
     <aside 
@@ -183,46 +184,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </button>
 
-            {/* Proprietăți */}
+            {/* Imobile */}
             <button
               type="button"
-              onClick={() => handleItemClick('Proprietăți')}
+              onClick={() => handleItemClick('Imobile')}
               className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                activeSubItem === 'Proprietăți' && location.pathname !== '/calendar'
+                isImobileActive && location.pathname !== '/calendar'
                   ? 'bg-[#051D35] text-white font-medium shadow-xs'
                   : 'text-gray-600 hover:text-[#051D35] hover:bg-gray-100/70'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <Building2 size={14} className={activeSubItem === 'Proprietăți' && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
-                <span className="truncate">Proprietăți</span>
+                <Building2 size={14} className={isImobileActive && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
+                <span className="truncate">Imobile</span>
               </div>
               {counts.proprietati > 0 && (
                 <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                  activeSubItem === 'Proprietăți' && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
+                  isImobileActive && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {counts.proprietati}
                 </span>
               )}
             </button>
 
-            {/* Clienți */}
+            {/* Contacte */}
             <button
               type="button"
-              onClick={() => handleItemClick('Clienți')}
+              onClick={() => handleItemClick('Contacte')}
               className={`w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-md transition-colors cursor-pointer select-none text-left ${
-                isClientiActive && location.pathname !== '/calendar'
+                isContacteActive && location.pathname !== '/calendar'
                   ? 'bg-[#051D35] text-white font-medium shadow-xs'
                   : 'text-gray-600 hover:text-[#051D35] hover:bg-gray-100/70'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <Users size={14} className={isClientiActive && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
-                <span className="truncate">Clienți</span>
+                <Users size={14} className={isContacteActive && location.pathname !== '/calendar' ? 'text-[#BE9662]' : 'text-gray-400'} />
+                <span className="truncate">Contacte</span>
               </div>
               {counts.clienti > 0 && (
                 <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-                  isClientiActive && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
+                  isContacteActive && location.pathname !== '/calendar' ? 'bg-white/15 text-[#BE9662]' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {counts.clienti}
                 </span>
@@ -281,25 +282,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => handleItemClick('Proprietăți')}
+              onClick={() => handleItemClick('Imobile')}
               className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
-                activeSubItem === 'Proprietăți' && location.pathname !== '/calendar'
+                isImobileActive && location.pathname !== '/calendar'
                   ? 'bg-[#051D35] text-[#BE9662]'
                   : 'text-gray-500 hover:text-[#051D35] hover:bg-gray-100'
               }`}
-              title={`Proprietăți (${counts.proprietati})`}
+              title={`Imobile (${counts.proprietati})`}
             >
               <Building2 size={16} />
             </button>
             <button
               type="button"
-              onClick={() => handleItemClick('Clienți')}
+              onClick={() => handleItemClick('Contacte')}
               className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
-                isClientiActive && location.pathname !== '/calendar'
+                isContacteActive && location.pathname !== '/calendar'
                   ? 'bg-[#051D35] text-[#BE9662]'
                   : 'text-gray-500 hover:text-[#051D35] hover:bg-gray-100'
               }`}
-              title={`Clienți (${counts.clienti})`}
+              title={`Contacte (${counts.clienti})`}
             >
               <Users size={16} />
             </button>

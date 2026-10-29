@@ -7,7 +7,7 @@ import { PersonalView } from "../components/PersonalView";
 import { AddLeadModal } from "../components/AddLeadModal";
 import { LeadList } from "../components/LeadList";
 import { LeadCard } from "../components/LeadCard";
-import { leadsService, Lead, LeadStatus, CERERI_STATUSES, isCerereLead } from "../services/leadsService";
+import { leadsService, Lead, LeadStatus, LeadRole, getLeadRole, CERERI_STATUSES, PROPRIETATI_STATUSES, isCerereLead } from "../services/leadsService";
 import { contactsService, Contact } from "../services/contactsService";
 import { personalService, PersonalMember } from "../services/personalService";
 import { viewingsService, Viewing } from "../services/viewingsService";
@@ -77,30 +77,52 @@ import { NevalidataUrlList } from "../components/NevalidataUrlList";
 import { NevalidataDetailsModal } from "../components/NevalidataDetailsModal";
 import { CalificataDetailsModal } from "../components/CalificataDetailsModal";
 
-const TABS: LeadStatus[] = ["Nevalidata", "Calificata", "Activa", "Noua", "Calificare", "Matching", "Vizionare", "Ofertare", "Antecontract", "Contract", "InNegociere", "Finalizata", "Arhiva", "Sterse"];
+const TABS: LeadStatus[] = [
+  "Nevalidata", 
+  "Calificata", 
+  "Noua", 
+  "Prospectare", 
+  "Colaborare", 
+  "Calificare", 
+  "Matching", 
+  "Vizionare", 
+  "Ofertare", 
+  "Antecontract", 
+  "Contract", 
+  "Activa", 
+  "InNegociere", 
+  "Finalizata", 
+  "Arhiva", 
+  "Sterse"
+];
 
 const CERERI_TABS: LeadStatus[] = ["Noua", "Calificare", "Matching", "Vizionare", "Ofertare", "Antecontract", "Contract"];
+
+const PROPRIETATI_TABS: LeadStatus[] = ["Noua", "Prospectare", "Colaborare", "Vizionare", "Ofertare", "Antecontract", "Contract"];
 
 const STATUS_LABELS: Record<string, string> = {
   "Nevalidata": "Nevalidate",
   "Calificata": "Calificate",
-  "Activa": "Active pe piață",
-  "AreInteres": "Nouă",
-  "InNegociere": "În Negociere",
-  "Finalizata": "Finalizate",
-  "Arhiva": "Arhivă",
-  "Sterse": "Șterse",
   "Noua": "Nouă",
+  "Prospectare": "Prospectare",
+  "Colaborare": "Colaborare",
   "Calificare": "Calificare",
   "Matching": "Matching",
   "Vizionare": "Vizionare",
   "Ofertare": "Ofertare",
   "Antecontract": "Antecontract",
-  "Contract": "Contract"
+  "Contract": "Contract",
+  "Activa": "Active pe piață",
+  "AreInteres": "Nouă",
+  "InNegociere": "În Negociere",
+  "Finalizata": "Finalizate",
+  "Arhiva": "Arhivă",
+  "Sterse": "Șterse"
 };
 
 type SortOption = 'newest' | 'oldest' | 'expensive' | 'cheap';
-type TransactionFilter = 'Toate' | 'Vânzare' | 'Închiriere';
+type TransactionFilter = 'Toate' | 'Vânzare' | 'Închiriere' | 'Cumpărare';
+type LeadRoleFilter = 'Toate' | 'Proprietari' | 'Cumparatori' | 'Chiriasi' | 'Proprietar' | 'Chirias' | 'Cumparator';
 
 const parsePrice = (priceStr: string): number => {
   if (!priceStr) return 0;
@@ -281,7 +303,7 @@ const CellCopyButton = ({ text, isImage = false, url = "", isRowDownload = false
 };
 
 export const Home: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<LeadStatus>("Activa");
+  const [activeTab, setActiveTab] = useState<LeadStatus>("Noua");
   const [lastVisitedTimes, setLastVisitedTimes] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('lastVisited_tabs');
@@ -292,18 +314,21 @@ export const Home: React.FC = () => {
   });
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>('Toate');
-  const [activeSidebarItem, setActiveSidebarItem] = useState<NavSubItem>('Proprietăți');
+  const [leadRoleFilter, setLeadRoleFilter] = useState<LeadRoleFilter>('Toate');
+  const [activeSidebarItem, setActiveSidebarItem] = useState<NavSubItem>('Imobile');
   const location = useLocation();
 
   const handleSelectSidebarItem = (subItem: NavSubItem) => {
-    const normalized = subItem === 'Contacte' ? 'Clienți' : subItem;
+    const normalized = subItem === 'Proprietăți' ? 'Imobile' : (subItem === 'Clienți' ? 'Contacte' : subItem);
     setActiveSidebarItem(normalized);
     if (normalized === 'Lead-uri') {
-      setActiveTab('Nevalidata');
+      setLeadRoleFilter('Toate');
     } else if (normalized === 'Cereri') {
       setActiveTab('Noua');
-    } else if (normalized === 'Proprietăți') {
-      setActiveTab('Activa');
+      setTransactionFilter('Toate');
+    } else if (normalized === 'Imobile') {
+      setActiveTab('Noua');
+      setTransactionFilter('Toate');
     }
   };
 
@@ -325,8 +350,8 @@ export const Home: React.FC = () => {
   // Compute live counts matching the sidebar definition
   const counts = useMemo(() => {
     const isCerere = (l: Lead) => isCerereLead(l);
-    const isLeadItem = (l: Lead) => l.status === 'Nevalidata' || l.status === 'Calificata';
-    const isPropItem = (l: Lead) => !isCerere(l) && !isLeadItem(l) && l.status !== 'Sterse';
+    const isLeadItem = (l: Lead) => l.status !== 'Sterse';
+    const isPropItem = (l: Lead) => !isCerere(l) && l.status !== 'Nevalidata' && l.status !== 'Calificata' && l.status !== 'Sterse';
 
     return {
       leads: leads.filter(isLeadItem).length,
@@ -337,16 +362,16 @@ export const Home: React.FC = () => {
     };
   }, [leads, contacts, personal]);
 
-  // Specific tabs for each section
+  // Specific tabs for each section - Lead-uri has no status tabs (removed as requested)
   const sectionTabs = useMemo<LeadStatus[]>(() => {
     if (activeSidebarItem === 'Lead-uri') {
-      return ['Nevalidata', 'Calificata'];
+      return [];
     }
     if (activeSidebarItem === 'Cereri') {
       return CERERI_TABS;
     }
     // Default to Proprietăți
-    return ['Activa', 'InNegociere', 'Finalizata', 'Arhiva', 'Sterse'];
+    return PROPRIETATI_TABS;
   }, [activeSidebarItem]);
 
   // Section title, description and icon metadata
@@ -355,8 +380,8 @@ export const Home: React.FC = () => {
       return {
         title: 'Lead-uri',
         count: counts.leads,
-        description: 'Oportunități noi preluate din piață, link-uri nevalidate și proprietăți calificate',
-        searchPlaceholder: 'Caută în lead-uri (titlu, URL, ID, preț)...',
+        description: 'Lead-uri preluate din piață (Proprietari, Chiriași, Cumpărători)',
+        searchPlaceholder: 'Caută în lead-uri (nume, telefon, zonă, ID, preț)...',
         icon: <Inbox size={16} className="text-[#BE9662]" />
       };
     }
@@ -370,10 +395,10 @@ export const Home: React.FC = () => {
       };
     }
     return {
-      title: 'Proprietăți',
+      title: 'Imobile',
       count: counts.proprietati,
-      description: 'Portofoliul complet de proprietăți active, în negociere și finalizate',
-      searchPlaceholder: 'Caută proprietăți după titlu, zonă, ID (#P...), preț...',
+      description: 'Portofoliul complet de imobile (Nouă, Prospectare, Colaborare, Vizionare, Ofertare, Antecontract, Contract)',
+      searchPlaceholder: 'Caută imobile după titlu, zonă, ID (#P...), preț...',
       icon: <Building2 size={16} className="text-[#BE9662]" />
     };
   }, [activeSidebarItem, counts]);
@@ -741,7 +766,8 @@ export const Home: React.FC = () => {
         throw new Error(errorMessage);
       }
 
-      const { text, title, images: rawImages } = await crawlRes.json();
+      const crawlData = await crawlRes.json();
+      const { text, title, images: rawImages, crmData, zone, price, ownerName, ownerPhone, transactionType, categoria, description } = crawlData;
       console.log(`[Home] Crawler found ${rawImages?.length || 0} raw images`);
       
       setExtractionStatus("Filtrare imagini...");
@@ -785,36 +811,63 @@ export const Home: React.FC = () => {
 
       const images = await filterImagesBySize(rawImages || []);
 
-      setExtractionStatus("Analiză Gemini...");
-      const extraction = await extractData(text, title, images, lead.propertyId, lead.url);
-      
-      const transType = (extraction.crmData?.detaliiGenerale?.tranzactie || "").toLowerCase().includes("inchiriere") 
+      setExtractionStatus("Salvare date...");
+      // All crawler images are put in crmData.imagini.alteSpatii so user can categorize them
+      const finalCrmData = crmData || {
+        detaliiGenerale: {
+          stadiu: "Activ - Hot",
+          tranzactie: transactionType || "Vânzare",
+          categoria: categoria || "Apartament",
+          proprietar: ownerName || "Nespecificat",
+          contacteAditionale: ownerPhone || "Nespecificat",
+          ansambluRezidential: "",
+          localizare: { oras: "București", zona: [zone || "București"], strada: "", numar: "", bloc: "", scara: "", apartament: "", puncteInteres: [], imprejurimi: [] },
+          memoPrivat: ""
+        },
+        descriere: {
+          titlu: title || "Fără titlu",
+          continut: description || text || "",
+          disponibilitate: "Imediat",
+          video: "",
+          turVirtual: ""
+        },
+        imagini: {
+          living: [],
+          bucatarie: [],
+          camera: [],
+          baie: [],
+          alteSpatii: []
+        }
+      };
+
+      if (images && images.length > 0) {
+        if (!finalCrmData.imagini) {
+          finalCrmData.imagini = { living: [], bucatarie: [], camera: [], baie: [], alteSpatii: [] };
+        }
+        finalCrmData.imagini.alteSpatii = images.map((img: string) => ({ original: img }));
+      }
+
+      const extraction = {
+        crmData: finalCrmData,
+        markdownMarketing: finalCrmData.descriere?.continut || description || "",
+        summary: `${categoria || "Proprietate"} în ${zone || "București"}, ${price || "N/A"}`
+      };
+
+      const transType = (finalCrmData.detaliiGenerale?.tranzactie || transactionType || "").toLowerCase().includes("inchiriere") 
         ? "Închiriere" 
         : "Vânzare";
-
-      const extractedPrice = extraction.crmData?.pret?.detalii?.pret;
-      const extractedCurrency = extraction.crmData?.pret?.detalii?.moneda || "";
-      const priceStr = extractedPrice 
-        ? (extractedPrice.includes("€") || extractedPrice.includes("EUR") || extractedPrice.includes("lei") || extractedPrice.includes("RON")
-            ? extractedPrice 
-            : `${extractedPrice} ${extractedCurrency}`.trim())
-        : lead.price;
 
       const deepCoverImage = images && images.length > 0 ? images[0] : lead.coverImage;
 
       const updatedFields = {
         extractedData: extraction,
-        categoria: extraction.crmData?.detaliiGenerale?.categoria || lead.categoria || "Alte tipuri",
-        title: extraction.crmData?.descriere?.titlu || lead.title || "Fără titlu",
-        price: priceStr || "N/A",
-        ownerName: (extraction.crmData?.detaliiGenerale?.proprietar && extraction.crmData.detaliiGenerale.proprietar !== "Nespecificat" && extraction.crmData.detaliiGenerale.proprietar !== "") 
-          ? extraction.crmData.detaliiGenerale.proprietar 
-          : lead.ownerName || "Nespecificat",
-        ownerPhone: (extraction.crmData?.detaliiGenerale?.contacteAditionale && extraction.crmData.detaliiGenerale.contacteAditionale !== "Nespecificat" && extraction.crmData.detaliiGenerale.contacteAditionale !== "") 
-          ? extraction.crmData.detaliiGenerale.contacteAditionale 
-          : lead.ownerPhone || "Nespecificat",
+        categoria: finalCrmData.detaliiGenerale?.categoria || categoria || lead.categoria || "Apartament",
+        title: finalCrmData.descriere?.titlu || title || lead.title || "Fără titlu",
+        price: price || lead.price || "N/A",
+        ownerName: ownerName || finalCrmData.detaliiGenerale?.proprietar || lead.ownerName || "Nespecificat",
+        ownerPhone: ownerPhone || finalCrmData.detaliiGenerale?.contacteAditionale || lead.ownerPhone || "Nespecificat",
         transactionType: transType as "Închiriere" | "Vânzare",
-        zone: (extraction.crmData?.detaliiGenerale?.localizare?.zona?.[0] || extraction.crmData?.detaliiGenerale?.localizare?.oras || lead.zone || "București"),
+        zone: zone || (finalCrmData.detaliiGenerale?.localizare?.zona?.[0] || lead.zone || "București"),
         coverImage: deepCoverImage
       };
 
@@ -857,10 +910,16 @@ export const Home: React.FC = () => {
           return lead.status === activeTab;
         }
         if (activeSidebarItem === 'Lead-uri') {
-          return lead.status === activeTab;
+          if (isCerereLead(lead)) return false;
+          if (lead.status === 'Sterse') return false;
+          return true;
         }
-        // Proprietăți: exclude cereri from properties
+        // Proprietăți: exclude cereri and non-property items
         if (isCerereLead(lead)) return false;
+        if (lead.status === 'Nevalidata' || lead.status === 'Calificata' || lead.status === 'Sterse') return false;
+        if (activeTab === 'Noua') {
+          return lead.status === 'Noua' || lead.status === 'Activa';
+        }
         return lead.status === activeTab;
       })
       .filter(lead => {
@@ -878,13 +937,35 @@ export const Home: React.FC = () => {
         return titleMatch || zoneMatch || priceMatch || nameMatch || phoneMatch || idMatch || catMatch || notesMatch || urlMatch;
       })
       .filter(lead => {
+        if (activeSidebarItem === 'Lead-uri') {
+          if (leadRoleFilter === 'Toate') return true;
+          const r = getLeadRole(lead);
+          if (leadRoleFilter === 'Proprietari' || leadRoleFilter === 'Proprietar') return r === 'Proprietar';
+          if (leadRoleFilter === 'Cumparatori' || leadRoleFilter === 'Cumparator') return r === 'Cumparator';
+          if (leadRoleFilter === 'Chiriasi' || leadRoleFilter === 'Chirias') return r === 'Chirias';
+          return true;
+        }
         if (transactionFilter === 'Toate') return true;
-        const type = lead.transactionType as string;
+        const type = String(lead.transactionType || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         if (!type) return false;
-        // Robust check for diacritics
-        if (transactionFilter === 'Închiriere') return type === 'Închiriere' || type === 'Inchiriere';
-        if (transactionFilter === 'Vânzare') return type === 'Vânzare' || type === 'Vanzare';
-        return type === transactionFilter;
+
+        if (activeSidebarItem === 'Cereri') {
+          if (transactionFilter === 'Cumpărare' || (transactionFilter as string) === 'Cumparare' || transactionFilter === 'Vânzare') {
+            return type.includes('cump') || type.includes('vanz');
+          }
+          if (transactionFilter === 'Închiriere' || (transactionFilter as string) === 'Inchiriere') {
+            return type.includes('inchir');
+          }
+        }
+
+        // Imobile / Proprietăți
+        if (transactionFilter === 'Închiriere' || (transactionFilter as string) === 'Inchiriere') {
+          return type.includes('inchir');
+        }
+        if (transactionFilter === 'Vânzare' || (transactionFilter as string) === 'Vanzare') {
+          return type.includes('vanz');
+        }
+        return true;
       })
       .filter(lead => {
         if (categoryFilter === 'Toate') return true;
@@ -949,7 +1030,7 @@ export const Home: React.FC = () => {
     });
 
     return groups;
-  }, [leads, activeTab, activeSidebarItem, sortOption, transactionFilter, categoryFilter, searchQuery]);
+  }, [leads, activeTab, activeSidebarItem, sortOption, transactionFilter, leadRoleFilter, categoryFilter, searchQuery]);
 
   const handleLeadClick = React.useCallback((lead: Lead) => {
     if (lead.status === "Nevalidata") {
@@ -972,10 +1053,7 @@ export const Home: React.FC = () => {
     setEditedTransactionType(lead.transactionType || "Vânzare");
     setEditedCategoria(lead.categoria || "");
     setIsEditingDetails(false);
-    if (lead.status === "Activa" && !lead.extractedData && !isExtracting) {
-      triggerExtraction(lead);
-    }
-  }, [triggerExtraction]);
+  }, []);
 
   useEffect(() => {
     setLastVisitedTimes(prev => {
@@ -1361,13 +1439,6 @@ export const Home: React.FC = () => {
         status: newStatus,
         lastMovedAt: new Date()
       });
-      
-      if (newStatus === "Activa" || newStatus === "Calificata") {
-        const lead = leads.find(l => l.id === leadId) || selectedLead;
-        if (lead && lead.id && (!lead.extractedData || !lead.extractedData.summary)) {
-          triggerExtraction(lead as Lead);
-        }
-      }
     } catch (error) {
       console.error("Failed to update status:", error);
     }
@@ -1404,14 +1475,6 @@ export const Home: React.FC = () => {
       };
       await leadsService.updateLeadData(leadId, finalPayload);
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...finalPayload } : l));
-
-      const lead = leads.find(l => l.id === leadId);
-      if (lead) {
-        const mergedLead = { ...lead, ...finalPayload };
-        if (!mergedLead.extractedData || !mergedLead.extractedData.summary) {
-          triggerExtraction(mergedLead);
-        }
-      }
     } catch (e) {
       console.error("Failed to move lead to calificata:", e);
       throw e;
@@ -1430,13 +1493,8 @@ export const Home: React.FC = () => {
 
   const handleActivateCalificatLead = async (leadId: string) => {
     try {
-      await leadsService.updateLeadStatus(leadId, 'Activa');
-      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: 'Activa' } : l));
-      
-      const lead = leads.find(l => l.id === leadId);
-      if (lead && (!lead.extractedData || !lead.extractedData.summary)) {
-        triggerExtraction(lead);
-      }
+      await leadsService.updateLeadStatus(leadId, 'Noua');
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: 'Noua' } : l));
     } catch (e) {
       console.error("Failed to activate lead:", e);
       throw e;
@@ -1592,14 +1650,14 @@ export const Home: React.FC = () => {
                       </button>
                     )}
 
-                    {activeSidebarItem === 'Proprietăți' && (
+                    {(activeSidebarItem === 'Imobile' || activeSidebarItem === 'Proprietăți') && (
                       <button
                         type="button"
                         onClick={() => setIsModalOpen(true)}
                         className="h-8 px-3 flex items-center gap-1.5 text-xs font-medium bg-[#051D35] hover:bg-[#0a2b4a] text-white rounded-md transition-colors cursor-pointer shrink-0 shadow-xs"
                       >
                         <Plus size={14} className="text-[#BE9662]" />
-                        <span>Adaugă Proprietate</span>
+                        <span>Adaugă Imobil</span>
                       </button>
                     )}
 
@@ -1620,72 +1678,123 @@ export const Home: React.FC = () => {
                 <div className="bg-white border-b border-gray-200 shrink-0 px-6 h-[40px] flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
                   {/* Left: Filter Tabs with counts */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {sectionTabs.map((tab) => {
-                      const tabCount = leads.filter(l => {
-                        if (activeSidebarItem === 'Cereri') {
-                          if (!isCerereLead(l)) return false;
-                          if (tab === 'Noua') return l.status === 'Noua' || l.status === 'AreInteres';
+                    {activeSidebarItem !== 'Lead-uri' && (
+                      sectionTabs.map((tab) => {
+                        const tabCount = leads.filter(l => {
+                          if (activeSidebarItem === 'Cereri') {
+                            if (!isCerereLead(l)) return false;
+                            if (tab === 'Noua') return l.status === 'Noua' || l.status === 'AreInteres';
+                            return l.status === tab;
+                          }
+                          // Proprietăți
+                          if (isCerereLead(l)) return false;
+                          if (l.status === 'Nevalidata' || l.status === 'Calificata' || l.status === 'Sterse') return false;
+                          if (tab === 'Noua') return l.status === 'Noua' || l.status === 'Activa';
                           return l.status === tab;
-                        }
-                        if (activeSidebarItem === 'Lead-uri') {
-                          return l.status === tab;
-                        }
-                        // Proprietăți
-                        if (isCerereLead(l)) return false;
-                        return l.status === tab;
-                      }).length;
-                      const hasNew = leads.some(lead => {
-                        const isMatch = activeSidebarItem === 'Cereri'
-                          ? (isCerereLead(lead) && (tab === 'Noua' ? lead.status === 'Noua' || lead.status === 'AreInteres' : lead.status === tab))
-                          : (activeSidebarItem === 'Proprietăți' ? (!isCerereLead(lead) && lead.status === tab) : lead.status === tab);
-                        if (!isMatch) return false;
-                        const itemTime = getTimestampMs(lead.lastMovedAt) || getTimestampMs(lead.updatedAt) || getTimestampMs(lead.createdAt);
-                        return tab !== activeTab && itemTime > (lastVisitedTimes[tab] || 0);
-                      });
-                      const isSelected = activeTab === tab;
+                        }).length;
+                        const hasNew = leads.some(lead => {
+                          const isMatch = activeSidebarItem === 'Cereri'
+                            ? (isCerereLead(lead) && (tab === 'Noua' ? lead.status === 'Noua' || lead.status === 'AreInteres' : lead.status === tab))
+                            : (!isCerereLead(lead) && lead.status !== 'Nevalidata' && lead.status !== 'Calificata' && lead.status !== 'Sterse' && (tab === 'Noua' ? lead.status === 'Noua' || lead.status === 'Activa' : lead.status === tab));
+                          if (!isMatch) return false;
+                          const itemTime = getTimestampMs(lead.lastMovedAt) || getTimestampMs(lead.updatedAt) || getTimestampMs(lead.createdAt);
+                          return tab !== activeTab && itemTime > (lastVisitedTimes[tab] || 0);
+                        });
+                        const isSelected = activeTab === tab;
 
-                      return (
-                        <button
-                          key={tab}
-                          onClick={() => setActiveTab(tab)}
-                          className={`h-7 px-2.5 flex items-center gap-1.5 text-xs rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-                            isSelected
-                              ? "bg-[#051D35] text-white font-medium shadow-xs"
-                              : "text-gray-600 hover:text-[#051D35] hover:bg-gray-100"
-                          }`}
-                        >
-                          <span>{STATUS_LABELS[tab]}</span>
-                          <span className={`text-[10px] font-mono px-1 rounded ${
-                            isSelected ? "bg-white/15 text-[#BE9662]" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {tabCount}
-                          </span>
-                          {hasNew && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#BE9662] animate-pulse ml-0.5" />
-                          )}
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`h-7 px-2.5 flex items-center gap-1.5 text-xs rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                              isSelected
+                                ? "bg-[#051D35] text-white font-medium shadow-xs"
+                                : "text-gray-600 hover:text-[#051D35] hover:bg-gray-100"
+                            }`}
+                          >
+                            <span>{STATUS_LABELS[tab]}</span>
+                            <span className={`text-[10px] font-mono px-1 rounded ${
+                              isSelected ? "bg-white/15 text-[#BE9662]" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {tabCount}
+                            </span>
+                            {hasNew && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#BE9662] animate-pulse ml-0.5" />
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
 
-                  {/* Right: Transaction pills, Category & Sort dropdowns */}
+                  {/* Right: Lead Role pills (in Lead-uri) or Transaction pills (Imobile/Cereri), Category & Sort dropdowns */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-md">
-                      {(['Toate', 'Vânzare', 'Închiriere'] as TransactionFilter[]).map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setTransactionFilter(type)}
-                          className={`h-6 px-2 text-[11px] font-medium rounded transition-all cursor-pointer ${
-                            transactionFilter === type
-                              ? "bg-[#051D35] text-white shadow-xs"
-                              : "text-gray-600 hover:text-[#051D35] hover:bg-white/70"
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
+                    {activeSidebarItem === 'Lead-uri' ? (
+                      <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-md">
+                        {([
+                          { id: 'Toate', label: 'Toate' },
+                          { id: 'Proprietari', label: 'Proprietari' },
+                          { id: 'Cumparatori', label: 'Cumpărători' },
+                          { id: 'Chiriasi', label: 'Chiriași' }
+                        ] as const).map((roleItem) => (
+                          <button
+                            key={roleItem.id}
+                            type="button"
+                            onClick={() => setLeadRoleFilter(roleItem.id)}
+                            className={`h-6 px-2.5 text-[11px] font-medium rounded transition-all cursor-pointer ${
+                              leadRoleFilter === roleItem.id
+                                ? "bg-[#051D35] text-white shadow-xs"
+                                : "text-gray-600 hover:text-[#051D35] hover:bg-white/70"
+                            }`}
+                          >
+                            {roleItem.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : activeSidebarItem === 'Cereri' ? (
+                      <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-md">
+                        {([
+                          { id: 'Toate', label: 'Toate' },
+                          { id: 'Cumpărare', label: 'Cumpărare' },
+                          { id: 'Închiriere', label: 'Închiriere' }
+                        ] as const).map((typeItem) => (
+                          <button
+                            key={typeItem.id}
+                            type="button"
+                            onClick={() => setTransactionFilter(typeItem.id as any)}
+                            className={`h-6 px-2 text-[11px] font-medium rounded transition-all cursor-pointer ${
+                              transactionFilter === typeItem.id
+                                ? "bg-[#051D35] text-white shadow-xs"
+                                : "text-gray-600 hover:text-[#051D35] hover:bg-white/70"
+                            }`}
+                          >
+                            {typeItem.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Imobile (sau Proprietăți) */
+                      <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-md">
+                        {([
+                          { id: 'Toate', label: 'Toate' },
+                          { id: 'Vânzare', label: 'Vânzare' },
+                          { id: 'Închiriere', label: 'Închiriere' }
+                        ] as const).map((typeItem) => (
+                          <button
+                            key={typeItem.id}
+                            type="button"
+                            onClick={() => setTransactionFilter(typeItem.id as any)}
+                            className={`h-6 px-2 text-[11px] font-medium rounded transition-all cursor-pointer ${
+                              transactionFilter === typeItem.id
+                                ? "bg-[#051D35] text-white shadow-xs"
+                                : "text-gray-600 hover:text-[#051D35] hover:bg-white/70"
+                            }`}
+                          >
+                            {typeItem.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="relative">
                       <select
@@ -1719,7 +1828,7 @@ export const Home: React.FC = () => {
 
             {/* Content */}
             <div className="flex-1 overflow-hidden relative">
-              {activeTab === "Nevalidata" ? (
+              {activeSidebarItem !== 'Lead-uri' && activeTab === "Nevalidata" ? (
                 <NevalidataUrlList 
                   groupedLeads={groupedLeads}
                   onItemClick={handleLeadClick}
@@ -1892,6 +2001,21 @@ export const Home: React.FC = () => {
                   </a>
                 )}
 
+                {/* On-demand AI Extraction Button */}
+                {selectedLead.url && (
+                  <button
+                    onClick={() => triggerExtraction(selectedLead)}
+                    disabled={isExtracting}
+                    className="h-8 px-2.5 rounded-md border border-[#051D35]/20 bg-white hover:bg-amber-50/50 text-[#051D35] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                    title={selectedLead.extractedData ? "Re-extrage Date AI" : "Extrage Date AI"}
+                  >
+                    <Zap size={13} className="text-[#BE9662]" fill="currentColor" />
+                    <span className="hidden sm:inline">
+                      {isExtracting ? "Se extrage..." : (selectedLead.extractedData ? "Re-extrage AI" : "Extrage AI")}
+                    </span>
+                  </button>
+                )}
+
                 {/* Add Activity Button */}
                 <button
                   onClick={() => setIsActivityModalOpen(true)}
@@ -1979,15 +2103,15 @@ export const Home: React.FC = () => {
                         </span>
                         <div className="relative">
                           <select 
-                            value={selectedLead.status === 'AreInteres' ? 'Noua' : selectedLead.status}
+                            value={selectedLead.status === 'AreInteres' || selectedLead.status === 'Activa' ? 'Noua' : selectedLead.status}
                             onChange={(e) => updateStatus(selectedLead.id!, e.target.value as LeadStatus)}
                             className="input-base w-full appearance-none pr-8 cursor-pointer h-8 text-xs rounded-md border border-gray-200 focus:border-[#051D35]"
                           >
                             {(isCerereLead(selectedLead) 
                               ? CERERI_TABS 
                               : (selectedLead.status === 'Nevalidata' || selectedLead.status === 'Calificata' 
-                                ? (['Nevalidata', 'Calificata', 'Activa', 'Sterse'] as LeadStatus[])
-                                : (['Activa', 'InNegociere', 'Finalizata', 'Arhiva', 'Sterse'] as LeadStatus[]))
+                                ? (['Nevalidata', 'Calificata', 'Noua', 'Sterse'] as LeadStatus[])
+                                : ([...PROPRIETATI_TABS, 'Sterse'] as LeadStatus[]))
                             ).map(status => (
                               <option key={status} value={status}>{STATUS_LABELS[status] || status}</option>
                             ))}
@@ -2251,10 +2375,11 @@ export const Home: React.FC = () => {
                       status={selectedLead.status}
                     />
                   ) : (
-                    selectedLead.status === "Activa" && (
+                    selectedLead.url ? (
                       <div className="py-14 flex flex-col items-center justify-center text-center bg-white rounded-md border border-gray-200 p-6">
                         <Database className="text-gray-200 mb-3" size={40} />
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Așteptare extracție sau eroare</p>
+                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Datele detaliate nu sunt extrase încă</p>
+                        <p className="text-[11px] text-gray-400 max-w-sm mb-4">Poți iniția oricând extracția inteligentă Gemini pentru a completa automat caracteristicile, specificațiile și galeria foto.</p>
                         <button 
                           onClick={() => triggerExtraction(selectedLead)}
                           className="bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors rounded-md px-5 h-9 font-semibold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
@@ -2263,7 +2388,7 @@ export const Home: React.FC = () => {
                            <span>Extrage Date AI</span>
                         </button>
                       </div>
-                    )
+                    ) : null
                   )}
 
                 </div>
@@ -2648,7 +2773,7 @@ const ExtractionViewer = ({ data, leadId, propertyId, onUpdate, basicInfoProps, 
         />
       </SectionCard>
       <SectionCard id="descriere" title="Descriere">
-        <DescriereSection data={data?.crmData?.descriere} onUpdate={wrapUpdate} fullCRMData={data?.crmData} />
+        <DescriereSection data={data?.crmData?.descriere} onUpdate={wrapUpdate} fullCRMData={data?.crmData} propertyId={propertyId} />
       </SectionCard>
       <SectionCard id="imagini" title="Imagini">
         <ImaginiSection data={data?.crmData?.imagini} onUpdate={wrapUpdate} fullCRMData={data?.crmData} propertyId={propertyId} />
@@ -2702,10 +2827,13 @@ const markdownComponents = {
   },
   thead: ({children}: any) => <thead className="bg-gray-50/80 border-b border-gray-200 text-gray-500 font-medium text-xs">{children}</thead>,
   th: ({children}: any) => {
-    const isImageTable = getTextFromChildren(children).toLowerCase().includes("imagine");
+    const rawText = getTextFromChildren(children);
+    const isImageTable = rawText.toLowerCase().includes("imagine");
+    const isIdHeader = rawText.trim().toLowerCase().startsWith("id ") || rawText.trim().toLowerCase() === "id";
+    const displayContent = isIdHeader ? "ID" : children;
     return (
       <th className="px-3 py-1.5 text-[11px] font-semibold text-gray-700 capitalize tracking-wide first:w-[20%] first:min-w-[120px]">
-        <TableHeaderCopyButton isImageTable={isImageTable}>{children}</TableHeaderCopyButton>
+        <TableHeaderCopyButton isImageTable={isImageTable}>{displayContent}</TableHeaderCopyButton>
       </th>
     );
   },
