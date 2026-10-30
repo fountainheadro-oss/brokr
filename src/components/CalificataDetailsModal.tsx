@@ -1,8 +1,23 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Play, ShieldAlert, Phone, User, Calendar, MapPin, Tag, AreaChart, Trash2, Edit } from "lucide-react";
+import { 
+  X, 
+  Play, 
+  ShieldAlert, 
+  Phone, 
+  User, 
+  MapPin, 
+  AreaChart, 
+  Trash2, 
+  Edit, 
+  Share2, 
+  AlertTriangle,
+  ArrowUpRight,
+  FileText
+} from "lucide-react";
 import { Lead } from "../services/leadsService";
 import toast from "react-hot-toast";
+import { getPublicShareUrl } from "../utils/shareUtils";
 
 interface CalificataDetailsModalProps {
   isOpen: boolean;
@@ -10,7 +25,7 @@ interface CalificataDetailsModalProps {
   onClose: () => void;
   onActivate: (leadId: string) => Promise<void>;
   onDeleteLead: (leadId: string) => Promise<void>;
-  onOpenFullForm?: () => void; // Optional if they want to edit further
+  onOpenFullForm?: () => void;
 }
 
 export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
@@ -26,6 +41,7 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
   const [activating, setActivating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
 
   const handleActivate = async () => {
     setActivating(true);
@@ -55,204 +71,244 @@ export const CalificataDetailsModal: React.FC<CalificataDetailsModalProps> = ({
     }
   };
 
-  const getSubtext = () => {
-    if (lead.notes) {
-      return lead.notes;
+  const handleShare = async () => {
+    if (!lead.id) return;
+    const shareUrl = getPublicShareUrl(lead.id);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedShare(true);
+      setTimeout(() => setCopiedShare(false), 2000);
+      toast.success("Linkul public al proprietății a fost copiat!");
+    } catch {
+      toast.success("Link: " + shareUrl);
     }
-    return "Fără observații suplimentare adăugate.";
   };
 
-  const utilSurface = lead.extractedData?.crmData?.caracteristici?.suprafete?.utila || "Nesperificat";
-  const builtSurface = lead.extractedData?.crmData?.caracteristici?.suprafete?.construita || "";
-  const roomsCount = lead.extractedData?.crmData?.caracteristici?.detalii?.camere || "N/A";
+  const utilSurface = lead.extractedData?.crmData?.caracteristici?.suprafete?.utila || "";
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          {/* Backdrop Overlay */}
+        <div className="fixed inset-0 z-[350] flex items-center justify-center p-4">
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300]"
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px]"
           />
 
-          {/* Modal layout box */}
+          {/* Modal Window */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ type: "spring", duration: 0.35 }}
-            className="fixed inset-0 m-auto max-w-xl h-[85vh] bg-white rounded-2xl shadow-2xl z-[301] flex flex-col overflow-hidden border border-gray-150"
+            exit={{ opacity: 0, scale: 0.98, y: 10 }}
+            className="relative bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden z-10 flex flex-col max-h-[90vh]"
           >
-            {/* Header section */}
-            <div className="p-5 flex items-center justify-between border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-[--color-brand-gold-light] border border-[--color-brand-gold-border] text-[--color-brand-gold] flex items-center justify-center">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-[#BE9662]/10 border border-[#BE9662]/20 flex items-center justify-center text-[#BE9662] shrink-0">
                   <ShieldAlert size={18} />
                 </div>
-                <div>
-                  <h3 className="text-[15px] font-bold text-[--color-brand-navy] leading-none">Proprietate Calificată</h3>
-                  <p className="text-[11px] font-semibold text-gray-400 tracking-wider uppercase mt-1">Pregătită de activare</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-gray-900 leading-tight truncate">
+                    Proprietate Calificată
+                  </h3>
+                  <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase mt-0.5">
+                    STATUS: CALIFICATE · Pregătită de activare
+                  </p>
                 </div>
               </div>
 
-              <button
-                onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-gray-900 transition-colors shadow-xs cursor-pointer"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                {lead.id && (
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="h-7 px-2.5 rounded-md border border-gray-200 bg-white hover:bg-amber-50/50 hover:border-[#BE9662]/40 text-gray-700 hover:text-[#051D35] text-[11px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                    title="Copiază link public de prezentare"
+                  >
+                    <Share2 size={12} className="text-[#BE9662]" />
+                    <span>{copiedShare ? "Copiat!" : "Distribuie"}</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                  title="Închide"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             {/* Scrollable specs block */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
-
-              {/* Title & Price info */}
+            <div className="p-5 space-y-3.5 text-xs overflow-y-auto">
+              {/* Badges & Title */}
               <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider ${
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
                     lead.transactionType === "Vânzare" || (lead.transactionType as string) === "Vanzare"
-                      ? "bg-[--color-brand-navy] text-white"
-                      : "bg-[--color-brand-gold-light] text-[--color-brand-navy] border border-[--color-brand-gold-border]"
+                      ? "bg-[#051D35] text-white"
+                      : "bg-[#BE9662]/15 text-[#051D35] border border-[#BE9662]/30"
                   }`}>
                     {lead.transactionType}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
                     {lead.categoria || "Nespecificat"}
                   </span>
+                  {lead.propertyId && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#051D35]/5 text-[#051D35] border border-[#051D35]/15">
+                      #{lead.propertyId}
+                    </span>
+                  )}
                 </div>
-                
-                <h2 className="text-[18px] font-black text-gray-900 tracking-tight leading-snug">
+
+                <h2 className="text-sm font-semibold text-gray-900 leading-snug">
                   {lead.title}
                 </h2>
 
-                <div className="text-[20px] font-black text-[--color-brand-gold] mt-1 font-mono">
+                <div className="text-base font-bold text-[#051D35] font-mono">
                   {lead.price}
                 </div>
               </div>
 
-              {/* Grid properties layout */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-400">
-                    <AreaChart size={16} />
+              {/* Grid specs */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200 flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-md bg-white border border-gray-200 flex items-center justify-center text-gray-400 shrink-0">
+                    <AreaChart size={14} />
                   </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-tight">Suprafață utilă</span>
-                    <span className="text-[13px] font-bold text-gray-700">{utilSurface} {utilSurface !== "Nesperificat" ? "mp" : ""}</span>
+                  <div className="min-w-0">
+                    <span className="text-[10px] uppercase font-semibold text-gray-400 block tracking-tight">Suprafață utilă</span>
+                    <span className="text-xs font-semibold text-gray-800 truncate block">
+                      {utilSurface ? `${utilSurface} mp` : "Nespecificat"}
+                    </span>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-400">
-                    <MapPin size={16} />
+                <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200 flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-md bg-white border border-gray-200 flex items-center justify-center text-gray-400 shrink-0">
+                    <MapPin size={14} />
                   </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-tight">Oraș / Localitate</span>
-                    <span className="text-[13px] font-bold text-gray-700 truncate block max-w-[120px]">{lead.zone || "Nespecificat"}</span>
+                  <div className="min-w-0">
+                    <span className="text-[10px] uppercase font-semibold text-gray-400 block tracking-tight">Oraș / Localitate</span>
+                    <span className="text-xs font-semibold text-gray-800 truncate block">
+                      {lead.zone || "Nespecificat"}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Owner Info Block */}
-              <div className="bg-amber-50/40 rounded-xl p-5 border border-amber-100/60 space-y-3.5">
-                <h4 className="text-[11px] uppercase font-bold text-amber-800/80 tracking-wider">Contact Proprietar</h4>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2.5 text-gray-700 text-[13px] font-semibold">
-                    <User size={16} className="text-gray-400 shrink-0" />
+              <div className="pt-2 border-t border-gray-100">
+                <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Date Contact Proprietar
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 text-gray-800 text-xs font-medium p-2 bg-gray-50 border border-gray-200 rounded-md">
+                    <User size={13} className="text-gray-400 shrink-0" />
                     <span className="truncate">{lead.ownerName || "Nespecificat"}</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-gray-700 text-[13px] font-bold">
-                    <Phone size={16} className="text-gray-400 shrink-0" />
-                    <span>{lead.ownerPhone || "Nespecificat"}</span>
+                  <div className="flex items-center gap-2 text-gray-800 text-xs font-medium p-2 bg-gray-50 border border-gray-200 rounded-md">
+                    <Phone size={13} className="text-gray-400 shrink-0" />
+                    <span className="truncate">{lead.ownerPhone || "Nespecificat"}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Custom notes section */}
-              <div className="space-y-2">
-                <h4 className="text-[11px] uppercase font-bold text-gray-450 tracking-wider">Notițe Private</h4>
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-150 min-h-[80px]">
-                  <p className="text-[13px] text-gray-600 font-medium whitespace-pre-wrap leading-relaxed">
-                    {getSubtext()}
-                  </p>
+              {/* Observații / Notițe */}
+              <div className="pt-2 border-t border-gray-100">
+                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                  <FileText size={12} className="text-[#BE9662]" />
+                  <span>Observații / Detalii Interne</span>
+                </label>
+                <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-md text-xs text-gray-700 whitespace-pre-wrap leading-relaxed min-h-[60px]">
+                  {lead.notes || "Fără observații suplimentare."}
                 </div>
               </div>
 
-              {/* External source Link */}
+              {/* External Source Link */}
               {lead.url && (
-                <div className="pt-2 text-center">
+                <div className="pt-1 text-center">
                   <a
                     href={lead.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-[--color-brand-gold] font-bold hover:underline"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#BE9662] font-semibold hover:underline"
                   >
                     <span>Vezi anunțul original listat</span>
-                    <Play size={10} className="fill-current" />
+                    <ArrowUpRight size={12} />
                   </a>
                 </div>
               )}
             </div>
 
             {/* Footer controls */}
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3 shrink-0">
-              <div>
-                {showDeleteConfirm ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-red-650 font-bold">Sigur?</span>
-                    <button
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="px-2.5 py-1.5 bg-red-600 text-white font-bold rounded-lg text-xs"
-                    >
-                      Da
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-2.5 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold"
-                    >
-                      Nu
-                    </button>
-                  </div>
-                ) : (
+            <div className="px-5 py-3.5 flex items-center justify-between border-t border-gray-100 bg-gray-50/50 shrink-0">
+              {showDeleteConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-red-600 flex items-center gap-1">
+                    <AlertTriangle size={13} />
+                    Sigur?
+                  </span>
                   <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 hover:border-red-200 hover:text-red-600 rounded-xl transition-all text-gray-400"
-                    title="Șterge proprietatea"
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="h-8 px-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold transition-colors cursor-pointer"
                   >
-                    <Trash2 size={16} />
+                    Da, șterge
                   </button>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="h-8 px-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-md text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    Nu
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="h-8 px-2.5 text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-md transition-colors cursor-pointer text-xs font-semibold flex items-center gap-1.5"
+                  title="Șterge lead"
+                >
+                  <Trash2 size={13} />
+                  <span>Șterge</span>
+                </button>
+              )}
 
               <div className="flex items-center gap-2">
                 {onOpenFullForm && (
                   <button
+                    type="button"
                     onClick={onOpenFullForm}
-                    className="h-11 px-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="h-8 px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-md transition-colors shadow-2xs text-xs flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Edit size={14} />
-                    <span>Editează</span>
+                    <Edit size={13} />
+                    <span>Editează complet</span>
                   </button>
                 )}
 
                 <button
+                  type="button"
                   onClick={handleActivate}
                   disabled={activating}
-                  className="h-11 px-6 bg-[--color-brand-navy] hover:bg-[--color-brand-navy-hover] text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                  className="h-8 px-4 bg-[#051D35] hover:bg-[#0a2b4a] text-white font-medium rounded-md transition-colors shadow-xs text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  <Play size={14} className="fill-current text-[--color-brand-gold]" />
+                  <Play size={12} className="fill-current text-[#BE9662]" />
                   <span>Activează pe Piață</span>
                 </button>
               </div>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );

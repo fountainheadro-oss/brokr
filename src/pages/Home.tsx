@@ -19,6 +19,7 @@ import { AddDocumentModal } from "../components/AddDocumentModal";
 import { AddActivityModal } from "../components/AddActivityModal";
 import { AddTourModal } from "../components/AddTourModal";
 import { PropertyQuickViewModal } from "../components/PropertyQuickViewModal";
+import { PropertyDetailView } from "../components/PropertyDetailView";
 import { NotificationsModal } from "../components/NotificationsModal";
 import { CalendarDrawer } from "../components/CalendarDrawer";
 import { ExtractionRulesModal } from "../components/ExtractionRulesModal";
@@ -1541,41 +1542,43 @@ export const Home: React.FC = () => {
         personal={personal}
       />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
-        <AnimatePresence mode="popLayout" initial={false}>
-        {!selectedLead ? (
-          <motion.div
-            key="list-view"
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute inset-0 flex flex-col bg-gray-50"
-          >
-            <Header 
-              onAddClick={() => setIsModalOpen(true)} 
-              onAddLeadClick={() => setIsModalOpen(true)}
-              onAddCerereClick={() => setIsCerereModalOpen(true)}
-              onAddContactClick={() => setIsContactModalOpen(true)}
-              onAddClientClick={() => setIsContactModalOpen(true)}
-              onAddPersonalClick={() => setActiveSidebarItem('Personal')}
-              onAddStaffClick={() => setActiveSidebarItem('Personal')}
-              onAddDocumentClick={() => setIsDocumentModalOpen(true)}
-              onAddActivityClick={() => setIsActivityModalOpen(true)}
-              onAddTourClick={() => setIsActivityModalOpen(true)}
-              onCalendarClick={() => setIsCalendarOpen(true)}
-              onNotificationsClick={() => setIsNotificationsOpen(true)} 
-              onExtractionRulesClick={() => setIsExtractionRulesOpen(true)}
-              onSelectLead={handleLeadClick}
-              onSelectContact={(c) => {
-                setSelectedContact(c);
-                setActiveSidebarItem('Clienți');
-              }}
-              onSelectPersonal={(_p) => {
-                setActiveSidebarItem('Personal');
-              }}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-            />
+        <Header 
+          onAddClick={() => setIsModalOpen(true)} 
+          onAddLeadClick={() => setIsModalOpen(true)}
+          onAddCerereClick={() => setIsCerereModalOpen(true)}
+          onAddContactClick={() => setIsContactModalOpen(true)}
+          onAddClientClick={() => setIsContactModalOpen(true)}
+          onAddPersonalClick={() => setActiveSidebarItem('Personal')}
+          onAddStaffClick={() => setActiveSidebarItem('Personal')}
+          onAddDocumentClick={() => setIsDocumentModalOpen(true)}
+          onAddActivityClick={() => setIsActivityModalOpen(true)}
+          onAddTourClick={() => setIsActivityModalOpen(true)}
+          onCalendarClick={() => setIsCalendarOpen(true)}
+          onNotificationsClick={() => setIsNotificationsOpen(true)} 
+          onExtractionRulesClick={() => setIsExtractionRulesOpen(true)}
+          onSelectLead={handleLeadClick}
+          onSelectContact={(c) => {
+            setSelectedContact(c);
+            setActiveSidebarItem('Contacte');
+          }}
+          onSelectPersonal={(_p) => {
+            setActiveSidebarItem('Personal');
+          }}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+
+        <div className="flex-1 min-h-0 relative overflow-hidden">
+          <AnimatePresence mode="popLayout" initial={false}>
+          {!selectedLead ? (
+            <motion.div
+              key="list-view"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 flex flex-col bg-gray-50 overflow-hidden"
+            >
 
             {activeSidebarItem === 'Clienți' || activeSidebarItem === 'Contacte' ? (
               <ContactsView 
@@ -1927,8 +1930,8 @@ export const Home: React.FC = () => {
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed inset-0 bg-gray-50 z-[200] overflow-y-auto flex flex-col"
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="absolute inset-0 bg-gray-50 overflow-y-auto flex flex-col z-10 scroll-smooth"
             onScroll={handleDetailsScroll}
           >
             {/* Sticky Header Bar */}
@@ -2044,437 +2047,16 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            {/* Sticky Mobile Section Navigator */}
-            <div className="sticky top-[50px] lg:hidden z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-2 flex gap-1.5 overflow-x-auto no-scrollbar scroll-smooth items-center">
-              {activeSectionsList.map((sect) => {
-                const status = getCompletionState(sect.id);
-                const isSelected = activeSection === sect.id;
-                return (
-                  <button
-                    key={sect.id}
-                    onClick={() => scrollToSection(sect.id)}
-                    className={`shrink-0 px-2.5 h-7 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                      isSelected
-                        ? "bg-[#051D35] text-white shadow-xs"
-                        : "bg-white text-gray-600 border border-gray-200 hover:text-gray-900 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span>{sect.label}</span>
-                    {status === "complete" && (
-                      <span className="w-3.5 h-3.5 rounded bg-emerald-500 text-white text-[9px] flex items-center justify-center font-bold">✓</span>
-                    )}
-                    {status === "partial" && (
-                      <span className="w-3.5 h-3.5 rounded bg-amber-500 text-white text-[9px] flex items-center justify-center font-bold">!</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="p-4 lg:p-6 flex-1 w-full max-w-7xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_240px] gap-4 items-start pb-10">
-                
-                {/* Column 1: Left Persistent Sidebar */}
-                <div className="col-span-1 space-y-4 lg:sticky lg:top-[70px] lg:max-h-[calc(100vh-90px)] lg:overflow-y-auto no-scrollbar order-3 lg:order-1">
-                  
-                  {/* ID Info Section */}
-                  <div id="identificare" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20">
-                    <div className="h-9 flex items-center justify-between px-3.5 bg-gray-50/80 border-b border-gray-200">
-                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">Identificare & Status</span>
-                      <Hash size={13} className="text-[#BE9662]" />
-                    </div>
-
-                    <div className="p-3.5 space-y-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                          {isCerereLead(selectedLead) ? "ID Cerere" : "ID Proprietate"}
-                        </span>
-                        <FormInput 
-                          value={editedPropertyId}
-                          onChange={setEditedPropertyId}
-                          onBlur={handleSaveDetails}
-                          placeholder={isCerereLead(selectedLead) ? "Cod cerere (ex. R102)..." : "Cod proprietate (ex. P102)..."}
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                          {isCerereLead(selectedLead) ? "Status Cerere" : "Status Proprietate"}
-                        </span>
-                        <div className="relative">
-                          <select 
-                            value={selectedLead.status === 'AreInteres' || selectedLead.status === 'Activa' ? 'Noua' : selectedLead.status}
-                            onChange={(e) => updateStatus(selectedLead.id!, e.target.value as LeadStatus)}
-                            className="input-base w-full appearance-none pr-8 cursor-pointer h-8 text-xs rounded-md border border-gray-200 focus:border-[#051D35]"
-                          >
-                            {(isCerereLead(selectedLead) 
-                              ? CERERI_TABS 
-                              : (selectedLead.status === 'Nevalidata' || selectedLead.status === 'Calificata' 
-                                ? (['Nevalidata', 'Calificata', 'Noua', 'Sterse'] as LeadStatus[])
-                                : ([...PROPRIETATI_TABS, 'Sterse'] as LeadStatus[]))
-                            ).map(status => (
-                              <option key={status} value={status}>{STATUS_LABELS[status] || status}</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contacte Alocate Section */}
-                  <div id="contactealocate" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20 flex flex-col">
-                    <div className="h-9 flex items-center justify-between px-3.5 bg-gray-50/80 border-b border-gray-200">
-                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">
-                        Contacte ({contacts.filter(c => c.propertyId === selectedLead.id).length})
-                      </span>
-                      <button 
-                        onClick={() => setIsContactModalOpen(true)}
-                        className="h-6 px-2 rounded bg-[#051D35] hover:bg-[#0a2b4a] text-white text-[10px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
-                        title="Adaugă Contact"
-                      >
-                        <Plus size={11} className="text-[#BE9662]" />
-                        <span>Adaugă</span>
-                      </button>
-                    </div>
-
-                    <div className="p-3">
-                      {contacts.filter(c => c.propertyId === selectedLead.id).length > 0 ? (
-                        <div className="space-y-2 overflow-y-auto max-h-[280px] pr-1 custom-scrollbar">
-                          {contacts
-                            .filter(c => c.propertyId === selectedLead.id)
-                            .sort((a, b) => {
-                              const timeA = b.createdAt?.toMillis?.() || 0;
-                              const timeB = a.createdAt?.toMillis?.() || 0;
-                              return timeA - timeB;
-                            })
-                            .map((contact, idx) => (
-                            <div
-                              key={contact.id || `${contact.firstName}-${contact.lastName}-${contact.phone}-${idx}`}
-                              className="p-2.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50/70 transition-all flex items-center justify-between gap-2"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <h4 className="text-xs font-semibold text-gray-900 leading-tight truncate">
-                                  {contact.firstName} {contact.lastName}
-                                </h4>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border ${
-                                    contact.type === "Owner" 
-                                      ? "bg-[#051D35]/5 text-[#051D35] border-[#051D35]/15" 
-                                      : "bg-[#BE9662]/10 text-[#051D35] border-[#BE9662]/30"
-                                  }`}>
-                                    {contact.type}
-                                  </span>
-                                  <span className="text-[10px] font-mono text-gray-500 truncate">{contact.phone}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                <a 
-                                  href={`https://wa.me/${contact.phone.replace(/[^0-9]/g, '')}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="w-7 h-7 rounded-md bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 hover:bg-emerald-100 transition-colors"
-                                  title="WhatsApp"
-                                >
-                                  <MessageSquare size={12} />
-                                </a>
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    downloadVCard(contact, selectedLead?.propertyId);
-                                  }}
-                                  className="w-7 h-7 rounded-md bg-[#051D35]/5 border border-[#051D35]/15 flex items-center justify-center text-[#051D35] hover:bg-[#051D35]/10 transition-colors cursor-pointer"
-                                  title="Salvează vCard"
-                                >
-                                  <Download size={12} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-6 text-center text-gray-400">
-                          <Users size={24} className="text-gray-300 mb-1" />
-                          <p className="text-[11px] font-medium">Niciun contact asociat</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Activități & Vizionări Section */}
-                  <div id="vizionaridb" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20 flex flex-col">
-                    <div className="h-9 flex items-center justify-between px-3.5 bg-gray-50/80 border-b border-gray-200">
-                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">
-                        Activități ({viewings.length})
-                      </span>
-                      <button 
-                        onClick={() => setIsActivityModalOpen(true)}
-                        className="h-6 px-2 rounded bg-[#051D35] hover:bg-[#0a2b4a] text-white text-[10px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
-                        title="Programează Activitate"
-                      >
-                        <Plus size={11} className="text-[#BE9662]" />
-                        <span>Programează</span>
-                      </button>
-                    </div>
-
-                    <div className="p-3">
-                      {viewings.length > 0 ? (
-                        <div className="space-y-2 overflow-y-auto max-h-[280px] pr-1 custom-scrollbar">
-                          {viewings.map((viewing, idx) => (
-                            <div
-                              key={viewing.id || `${viewing.date}-${viewing.hour}-${viewing.contactName}-${idx}`}
-                              onClick={() => {
-                                setSelectedViewing(viewing);
-                                setIsViewingDetailsOpen(true);
-                              }}
-                              className="p-2.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50/70 transition-all cursor-pointer group"
-                            >
-                              <div className="flex items-center justify-between gap-1">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <span className="text-[10px] font-mono font-bold text-[#BE9662] flex items-center gap-1">
-                                      <Clock size={10} />
-                                      {viewing.hour}
-                                    </span>
-                                    <span className="text-[10px] font-mono text-gray-400">·</span>
-                                    <span className="text-[10px] font-mono text-gray-500">
-                                      {viewing.date}
-                                    </span>
-                                  </div>
-                                  <h4 className="text-xs font-semibold text-gray-900 leading-tight truncate group-hover:text-[#051D35]">
-                                    {viewing.contactName}
-                                  </h4>
-                                </div>
-
-                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <button 
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      try {
-                                        await viewingsService.deleteViewing(viewing.id!);
-                                        toast.success('Activitate ștearsă');
-                                      } catch (error) {
-                                        toast.error('Eroare la ștergere');
-                                      }
-                                    }}
-                                    className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                                    title="Șterge"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-6 text-center text-gray-400">
-                          <Calendar size={24} className="text-gray-300 mb-1" />
-                          <p className="text-[11px] font-medium">Nicio activitate programată</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Delete Action Section - Only shown when status is 'Sterse' */}
-                  {selectedLead.status === 'Sterse' && (
-                    <div id="delete-section" className="scroll-mt-20">
-                      <div className="bg-red-50/50 p-4 rounded-md border border-red-200 flex flex-col items-center text-center">
-                        <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center text-red-600 mb-2 border border-red-100 shadow-xs">
-                          <Trash2 size={18} />
-                        </div>
-                        <h3 className="text-xs font-bold text-red-900 mb-1">Ștergere Definitivă</h3>
-                        <p className="text-[11px] text-red-600 mb-3 max-w-xs leading-relaxed font-medium">
-                          Această acțiune este ireversibilă. Toate datele vor fi șterse definitiv din sistem.
-                        </p>
-                        
-                        {!showDeleteConfirm ? (
-                          <button
-                            onClick={() => setShowDeleteConfirm(true)}
-                            className="w-full h-8 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold transition-all flex items-center justify-center gap-1.5 text-xs shadow-xs cursor-pointer"
-                          >
-                            <Trash2 size={13} />
-                            Șterge Proprietate Definitiv
-                          </button>
-                        ) : (
-                          <div className="flex flex-col gap-2 w-full">
-                            <p className="text-[10px] font-bold text-red-800 uppercase tracking-wider">Confirmați ștergerea?</p>
-                            <div className="flex gap-2 w-full">
-                              <button
-                                onClick={handleDeleteLead}
-                                className="flex-1 h-8 bg-red-600 text-white rounded-md font-semibold text-xs hover:bg-red-700 transition-colors shadow-xs cursor-pointer"
-                              >
-                                Da, Șterge
-                              </button>
-                              <button
-                                onClick={() => setShowDeleteConfirm(false)}
-                                className="flex-1 h-8 bg-white border border-gray-200 text-gray-600 rounded-md font-semibold text-xs hover:bg-gray-50 transition-colors cursor-pointer"
-                              >
-                                Nu
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Column 2: Main Content Area */}
-                <div className="col-span-1 min-w-0 space-y-4 order-1 lg:order-2">
-                  
-                  {/* Basic Info Card */}
-                  <div id="basicale" className="bg-white rounded-md border border-gray-200 shadow-none overflow-hidden scroll-mt-20">
-                    <div className="h-9 flex items-center px-3.5 bg-gray-50/80 border-b border-gray-200">
-                      <span className="text-[11px] font-semibold text-gray-800 uppercase tracking-wider">Informații de Bază</span>
-                    </div>
-                    <div className="p-4">
-                      <BasicInfoSection 
-                        editedTitle={editedTitle} setEditedTitle={setEditedTitle}
-                        editedName={editedName} setEditedName={setEditedName}
-                        editedPhone={editedPhone} setEditedPhone={setEditedPhone}
-                        editedZone={editedZone} setEditedZone={setEditedZone}
-                        editedPrice={editedPrice} setEditedPrice={setEditedPrice}
-                        editedTransactionType={editedTransactionType} setEditedTransactionType={setEditedTransactionType}
-                        editedCategoria={editedCategoria} setEditedCategoria={setEditedCategoria}
-                        url={selectedLead.url}
-                        coverImage={selectedLead.coverImage}
-                        handleSaveDetails={handleSaveDetails}
-                        extractedData={selectedLead.extractedData}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Extraction Section or Viewer */}
-                  {isExtracting ? (
-                    <div className="py-16 flex flex-col items-center justify-center text-center bg-white rounded-md border border-gray-200 shadow-none">
-                      <Loader2 className="animate-spin text-[#051D35] mb-3" size={24} />
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{extractionStatus}</p>
-                    </div>
-                  ) : selectedLead.extractedData ? (
-                    <ExtractionViewer 
-                      data={selectedLead.extractedData} 
-                      leadId={selectedLead.id!} 
-                      propertyId={editedPropertyId}
-                      onUpdate={handleUpdate}
-                      basicInfoProps={{
-                        editedTitle, setEditedTitle,
-                        editedName, setEditedName,
-                        editedPhone, setEditedPhone,
-                        editedZone, setEditedZone,
-                        editedPrice, setEditedPrice,
-                        editedTransactionType, setEditedTransactionType,
-                        editedCategoria, setEditedCategoria,
-                        url: selectedLead.url,
-                        coverImage: selectedLead.coverImage,
-                        handleSaveDetails,
-                        extractedData: selectedLead.extractedData
-                      }} 
-                      status={selectedLead.status}
-                    />
-                  ) : (
-                    selectedLead.url ? (
-                      <div className="py-14 flex flex-col items-center justify-center text-center bg-white rounded-md border border-gray-200 p-6">
-                        <Database className="text-gray-200 mb-3" size={40} />
-                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Datele detaliate nu sunt extrase încă</p>
-                        <p className="text-[11px] text-gray-400 max-w-sm mb-4">Poți iniția oricând extracția inteligentă Gemini pentru a completa automat caracteristicile, specificațiile și galeria foto.</p>
-                        <button 
-                          onClick={() => triggerExtraction(selectedLead)}
-                          className="bg-[#051D35] hover:bg-[#0a2b4a] text-white transition-colors rounded-md px-5 h-9 font-semibold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                        >
-                           <Zap size={14} className="text-[#BE9662]" />
-                           <span>Extrage Date AI</span>
-                        </button>
-                      </div>
-                    ) : null
-                  )}
-
-                </div>
-
-                {/* Column 3: Right Sticky Navigator (Desktop only) */}
-                <div className="hidden lg:block lg:sticky lg:top-[70px] lg:max-h-[calc(100vh-90px)] lg:overflow-y-auto no-scrollbar order-2 lg:order-3">
-                  <div className="bg-white rounded-md border border-gray-200 p-2.5 shadow-none space-y-1">
-                    <div className="h-7 flex items-center px-2 text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 mb-1">
-                      Navigare Secțiuni
-                    </div>
-                    
-                    <div className="space-y-1">
-                      {activeSectionsList
-                        .filter((sect) => !["identificare", "contactealocate", "vizionaridb"].includes(sect.id))
-                        .map((sect) => {
-                          const status = getCompletionState(sect.id);
-                          const isSelected = activeSection === sect.id;
-                          
-                          return (
-                            <button
-                              key={sect.id}
-                              onClick={() => scrollToSection(sect.id)}
-                              className={`w-full flex items-center justify-between text-left h-7 px-2.5 rounded-md text-xs transition-colors cursor-pointer ${
-                                isSelected 
-                                  ? "bg-[#051D35] text-white font-semibold shadow-xs" 
-                                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium"
-                              }`}
-                            >
-                              <span className="truncate">{sect.label}</span>
-                              
-                              <span className="flex items-center shrink-0 ml-1.5">
-                                {status === "complete" && (
-                                  <span className={`text-[10px] font-bold ${isSelected ? 'text-[#BE9662]' : 'text-emerald-600'}`}>✓</span>
-                                )}
-                                {status === "partial" && (
-                                  <span className={`text-[10px] font-bold ${isSelected ? 'text-amber-300' : 'text-amber-500'}`}>!</span>
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })}
-                    </div>
-
-                    {/* Share Link Card (under page navigation) */}
-                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Distribuie Link</span>
-                        <Share2 size={12} className="text-[#BE9662]" />
-                      </div>
-
-                      <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-md p-1 pl-2">
-                        <span className="text-[10px] text-gray-500 font-mono truncate flex-1 select-all" title={getPublicShareUrl(selectedLead.id!)}>
-                          {getPublicShareUrl(selectedLead.id!)}
-                        </span>
-                        <button
-                          onClick={() => handleCopyShareLink(selectedLead.id!)}
-                          className={`h-6 px-2 rounded text-[10px] font-semibold transition-all flex items-center gap-1 shrink-0 ${
-                            copiedShareId === selectedLead.id
-                              ? "bg-green-600 text-white"
-                              : "bg-[#051D35] text-white hover:bg-[#0a2b4a]"
-                          }`}
-                          title="Copiază link-ul"
-                        >
-                          {copiedShareId === selectedLead.id ? <Check size={11} /> : <Copy size={11} />}
-                          <span>{copiedShareId === selectedLead.id ? "Copiat" : "Copiază"}</span>
-                        </button>
-                      </div>
-
-                      <a
-                        href={getPublicShareUrl(selectedLead.id!)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full h-7 flex items-center justify-center gap-1.5 rounded-md text-[11px] font-medium text-gray-700 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
-                      >
-                        <ExternalLink size={11} />
-                        <span>Deschide link public</span>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
+            {/* Presentation layout for property details */}
+            <PropertyDetailView 
+              lead={selectedLead}
+              isPublicShared={false}
+              contacts={contacts.filter(c => c.propertyId === selectedLead.propertyId || c.propertyId === selectedLead.id)}
+            />
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
 
       <NotificationsModal 
         isOpen={isNotificationsOpen} 

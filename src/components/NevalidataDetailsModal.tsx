@@ -1,10 +1,25 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Globe, Save, Trash2, ArrowUpRight, ClipboardCopy, Phone, User, Check, AlertTriangle } from "lucide-react";
+import { 
+  X, 
+  Globe, 
+  Save, 
+  Trash2, 
+  ArrowUpRight, 
+  ClipboardCopy, 
+  Phone, 
+  User, 
+  AlertTriangle, 
+  Share2, 
+  Tag, 
+  MapPin, 
+  Home, 
+  FileText 
+} from "lucide-react";
 import { Lead } from "../services/leadsService";
-import { CATEGORIA_OPTIONS, TRANZACTIE_OPTIONS, ORAS_OPTIONS } from "../constants";
-import { FormInput, FormSelect } from "./FormElements";
+import { CATEGORIA_OPTIONS, ORAS_OPTIONS } from "../constants";
 import toast from "react-hot-toast";
+import { getPublicShareUrl } from "../utils/shareUtils";
 
 interface NevalidataDetailsModalProps {
   isOpen: boolean;
@@ -23,11 +38,15 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
   onDeleteLead,
   onSaveLead
 }) => {
-  if (!lead) return null;
+  if (!isOpen || !lead) return null;
 
   const [title, setTitle] = useState(lead.title || "");
   const [price, setPrice] = useState(lead.price || "");
-  const [transactionType, setTransactionType] = useState<"Vânzare" | "Închiriere">(lead.transactionType || "Vânzare");
+  const [transactionType, setTransactionType] = useState<"Vânzare" | "Închiriere">(
+    lead.transactionType === "Închiriere" || (lead.transactionType as string) === "Inchiriere"
+      ? "Închiriere"
+      : "Vânzare"
+  );
   const [categoria, setCategoria] = useState(lead.categoria || "Apartament");
   const [ownerName, setOwnerName] = useState(lead.ownerName || "");
   const [ownerPhone, setOwnerPhone] = useState(lead.ownerPhone || "");
@@ -43,14 +62,30 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
 
   const [saving, setSaving] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(lead.url);
-    toast.success("URL-ul a fost copiat în clipboard!");
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+    toast.success("URL-ul sursă a fost copiat!");
+  };
+
+  const handleShare = async () => {
+    if (!lead.id) return;
+    const shareUrl = getPublicShareUrl(lead.id);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedShare(true);
+      setTimeout(() => setCopiedShare(false), 2000);
+      toast.success("Linkul public al proprietății a fost copiat!");
+    } catch {
+      toast.success("Link: " + shareUrl);
+    }
   };
 
   const getUpdatedLeadPayload = (): Partial<Lead> => {
-    // Construct updated extractedData to match CRM structure if needed
     const currentExtracted: any = lead.extractedData || {
       crmData: {
         detaliiGenerale: {
@@ -82,7 +117,6 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
       }
     };
 
-    // Deep merge changes
     if (currentExtracted && currentExtracted.crmData) {
       currentExtracted.crmData.detaliiGenerale.categoria = categoria;
       currentExtracted.crmData.detaliiGenerale.tranzactie = transactionType === "Închiriere" ? "Inchiriere" : "Vanzare";
@@ -169,260 +203,326 @@ export const NevalidataDetailsModal: React.FC<NevalidataDetailsModalProps> = ({
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300]"
-          />
+      <div className="fixed inset-0 z-[350] flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/40 backdrop-blur-[2px]"
+        />
 
-          {/* Modal content container */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", duration: 0.35 }}
-            className="fixed inset-0 m-auto max-w-2xl h-[90vh] bg-white rounded-2xl shadow-2xl z-[301] flex flex-col overflow-hidden border border-gray-100"
-          >
-            {/* Header */}
-            <div className="p-5 flex items-center justify-between border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[--color-accent]/10 flex items-center justify-center text-[--color-accent]">
-                  <Globe size={20} />
-                </div>
-                <div>
-                  <h3 className="text-[16px] font-bold text-gray-900 leading-none">Scanează și Validează URL</h3>
-                  <p className="text-[11px] font-semibold text-gray-400 tracking-wider uppercase mt-1">Status: Nevalidate</p>
-                </div>
+        {/* Modal Window */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.98, y: 10 }}
+          className="relative bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden z-10 flex flex-col max-h-[90vh]"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 rounded-lg bg-[#BE9662]/10 border border-[#BE9662]/20 flex items-center justify-center text-[#BE9662] shrink-0">
+                <Globe size={18} />
               </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-gray-900 leading-tight truncate">
+                  Scanează și Validează URL
+                </h3>
+                <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase mt-0.5">
+                  STATUS: NEVALIDATE
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0 ml-3">
+              {lead.id && (
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="h-7 px-2.5 rounded-md border border-gray-200 bg-white hover:bg-amber-50/50 hover:border-[#BE9662]/40 text-gray-700 hover:text-[#051D35] text-[11px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                  title="Copiază link public de prezentare"
+                >
+                  <Share2 size={12} className="text-[#BE9662]" />
+                  <span>{copiedShare ? "Copiat!" : "Distribuie"}</span>
+                </button>
+              )}
+
               <button
+                type="button"
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-full text-gray-400 hover:text-gray-900 transition-colors shadow-sm"
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                title="Închide"
               >
-                <X size={20} strokeWidth={2.5} />
+                <X size={16} />
               </button>
             </div>
+          </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
-              
-              {/* URL card block */}
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-150 flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">URL Sursă</span>
-                  <a
-                    href={lead.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[13px] font-semibold text-[--color-brand-gold] hover:underline break-all flex items-center gap-1.5"
-                  >
-                    <span>{lead.url}</span>
-                    <ArrowUpRight size={14} className="shrink-0" />
-                  </a>
-                </div>
+          {/* Form Content */}
+          <div className="p-5 space-y-3.5 text-xs overflow-y-auto">
+
+            {/* URL Sursă Box */}
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between gap-3 text-xs">
+              <div className="min-w-0 flex-1">
+                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  URL Sursă
+                </span>
+                <a
+                  href={lead.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[#BE9662] hover:underline truncate block text-xs"
+                  title={lead.url}
+                >
+                  {lead.url}
+                </a>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
+                  type="button"
                   onClick={handleCopyUrl}
-                  className="w-9 h-9 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-900 flex items-center justify-center shrink-0 transition-colors shadow-none"
-                  title="Copiază link"
+                  className="h-7 px-2 border border-gray-200 rounded-md bg-white hover:bg-gray-100 text-gray-700 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                  title="Copiază URL sursă"
                 >
-                  <ClipboardCopy size={16} />
+                  <ClipboardCopy size={12} />
+                  <span>{copiedUrl ? "Copiat!" : "Copiază"}</span>
                 </button>
-              </div>
-
-              {/* Form Grid */}
-              <div className="space-y-4">
-                {/* Section title */}
-                <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2">
-                  Detalii Identificate (Corectează dacă e cazul)
-                </h4>
-
-                {/* Row 1: Title */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">Titlu Proprietate</label>
-                  <FormInput 
-                    value={title}
-                    onChange={setTitle}
-                    placeholder="Titlu..."
-                  />
-                </div>
-
-                {/* Row 2: Price & Transaction Type */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">Preț</label>
-                    <FormInput 
-                      value={price}
-                      onChange={setPrice}
-                      placeholder="e.g. 1500 € / lună..."
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">Tip Tranzacție</label>
-                    <div className="flex border border-[--color-border] bg-white p-1 rounded-[8px] h-12">
-                      {(['Vânzare', 'Închiriere'] as const).map((type) => (
-                        <button
-                          type="button"
-                          key={type}
-                          onClick={() => setTransactionType(type)}
-                          className={`flex-1 rounded-[6px] text-xs font-bold transition-all ${
-                            transactionType === type
-                              ? "bg-[--color-brand-navy] text-white shadow-sm"
-                              : "text-gray-500 hover:bg-gray-50"
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Row 3: Category & surface */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">Categoria</label>
-                    <FormSelect 
-                      value={categoria}
-                      onChange={setCategoria}
-                      options={CATEGORIA_OPTIONS}
-                      showEmpty={false}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">Suprafață Utilă (mp)</label>
-                    <FormInput 
-                      value={suprafata}
-                      onChange={setSuprafata}
-                      placeholder="e.g. 75"
-                    />
-                  </div>
-                </div>
-
-                {/* Row 4: Locality / City */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">Oraș / Localizare</label>
-                  <FormSelect 
-                    value={oras}
-                    onChange={setOras}
-                    options={ORAS_OPTIONS}
-                    showEmpty={false}
-                  />
-                </div>
-
-                {/* Section: Owner block */}
-                <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pt-4 pb-2">
-                  Informații Contact Proprietar
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1 flex items-center gap-1">
-                      <User size={13} className="text-gray-400" />
-                      Nume Proprietar
-                    </label>
-                    <FormInput 
-                      value={ownerName}
-                      onChange={setOwnerName}
-                      placeholder="Nume..."
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1 flex items-center gap-1">
-                      <Phone size={13} className="text-gray-400" />
-                      Telefon Proprietar
-                    </label>
-                    <FormInput 
-                      value={ownerPhone}
-                      onChange={setOwnerPhone}
-                      placeholder="Telefon..."
-                    />
-                  </div>
-                </div>
-
-                {/* Section: Notes */}
-                <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pt-4 pb-2">
-                  Notițe Private
-                </h4>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="block text-[12px] font-bold text-[--color-text-placeholder] tracking-wider mb-1">Observații / Detalii Interne</label>
-                  <textarea
-                    rows={3}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="input-base w-full min-h-[100px] font-roboto text-base font-normal text-[#333333] placeholder-gray-400 p-4 leading-relaxed resize-none"
-                    placeholder="Adaugă notițe despre această proprietate..."
-                  />
-                </div>
+                <a
+                  href={lead.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-md bg-white hover:bg-gray-100 text-gray-600 transition-colors shadow-2xs"
+                  title="Deschide în tab nou"
+                >
+                  <ArrowUpRight size={13} />
+                </a>
               </div>
             </div>
 
-            {/* Footer buttons row */}
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
-              {/* Left action: delete with confirmation */}
+            {/* Section Divider */}
+            <div className="pt-1">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                Detalii Identificate (corectează dacă e cazul)
+              </span>
+            </div>
+
+            {/* Titlu Proprietate */}
+            <div>
+              <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                <FileText size={12} className="text-[#BE9662]" />
+                <span>Titlu Proprietate *</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="ex. Închiriez apartament 2 camere..."
+                className="w-full h-8 px-2.5 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 placeholder:text-gray-400"
+              />
+            </div>
+
+            {/* Preț & Tip Tranzacție */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                {showConfirmDelete ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-red-600 flex items-center gap-1">
-                      <AlertTriangle size={14} />
-                      Sigur ștergi?
-                    </span>
-                    <button
-                      onClick={handleDelete}
-                      className="px-3 h-9 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold"
-                    >
-                      Da
-                    </button>
-                    <button
-                      onClick={() => setShowConfirmDelete(false)}
-                      className="px-3 h-9 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold"
-                    >
-                      Nu
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowConfirmDelete(true)}
-                    className="h-11 px-4 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 flex items-center gap-2 text-xs font-bold transition-all"
-                    title="Șterge definitiv"
-                  >
-                    <Trash2 size={16} />
-                    <span>Șterge</span>
-                  </button>
-                )}
+                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                  <Tag size={12} className="text-[#BE9662]" />
+                  <span>Preț</span>
+                </label>
+                <input
+                  type="text"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="ex. 750 EUR / lună"
+                  className="w-full h-8 px-2.5 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 placeholder:text-gray-400"
+                />
               </div>
 
-              {/* Right actions */}
-              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="h-11 px-5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-bold text-[13px] flex items-center gap-1.5 transition-all disabled:opacity-50"
-                >
-                  <Save size={16} />
-                  <span>Salvează</span>
-                </button>
-
-                <button
-                  onClick={handlePromote}
-                  disabled={saving}
-                  className="h-11 px-6 rounded-xl btn-brand-primary text-white font-bold text-[13px] flex items-center gap-2 transition-all disabled:opacity-50 shadow-md cursor-pointer"
-                >
-                  <Check size={16} />
-                  <span>Mută în Calificată</span>
-                </button>
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Tip Tranzacție
+                </label>
+                <div className="grid grid-cols-2 gap-1 p-0.5 bg-gray-50 border border-gray-200 rounded-md h-8">
+                  {(['Vânzare', 'Închiriere'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setTransactionType(t)}
+                      className={`h-full text-center rounded text-[11px] font-medium transition-all cursor-pointer flex items-center justify-center ${
+                        transactionType === t
+                          ? "bg-[#051D35] text-white shadow-xs font-semibold"
+                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </motion.div>
-        </>
-      )}
+
+            {/* Categorie & Suprafață */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                  <Home size={12} className="text-[#BE9662]" />
+                  <span>Categorie</span>
+                </label>
+                <select
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                  className="w-full h-8 px-2.5 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 cursor-pointer"
+                >
+                  {CATEGORIA_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Suprafață Utilă (mp)
+                </label>
+                <input
+                  type="text"
+                  value={suprafata}
+                  onChange={(e) => setSuprafata(e.target.value)}
+                  placeholder="ex. 65"
+                  className="w-full h-8 px-2.5 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 placeholder:text-gray-400"
+                />
+              </div>
+            </div>
+
+            {/* Oraș / Localizare */}
+            <div>
+              <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                <MapPin size={12} className="text-[#BE9662]" />
+                <span>Oraș / Localizare</span>
+              </label>
+              <select
+                value={oras}
+                onChange={(e) => setOras(e.target.value)}
+                className="w-full h-8 px-2.5 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 cursor-pointer"
+              >
+                {ORAS_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Contact Proprietar */}
+            <div className="pt-2 border-t border-gray-100">
+              <span className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                Date Contact Proprietar
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                    <User size={12} className="text-gray-400" />
+                    <span>Nume Proprietar</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    placeholder="ex. Popescu Ion"
+                    className="w-full h-8 px-2.5 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                    <Phone size={12} className="text-gray-400" />
+                    <span>Telefon Proprietar</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={ownerPhone}
+                    onChange={(e) => setOwnerPhone(e.target.value)}
+                    placeholder="07xxxxxxxx"
+                    className="w-full h-8 px-2.5 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Notițe / Observații */}
+            <div className="pt-2 border-t border-gray-100">
+              <label className="block text-gray-700 font-semibold mb-1 flex items-center gap-1.5">
+                <FileText size={12} className="text-[#BE9662]" />
+                <span>Observații / Detalii Interne</span>
+              </label>
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Observații despre lead sau imobil..."
+                className="w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:border-[#BE9662] focus:ring-1 focus:ring-[#BE9662] bg-white text-xs text-gray-800 resize-none placeholder:text-gray-400"
+              />
+            </div>
+
+          </div>
+
+          {/* Footer Bar */}
+          <div className="px-5 py-3.5 flex items-center justify-between border-t border-gray-100 bg-gray-50/50 shrink-0">
+            {showConfirmDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-red-600 flex items-center gap-1">
+                  <AlertTriangle size={13} />
+                  Sigur?
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="h-8 px-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Da, șterge
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmDelete(false)}
+                  className="h-8 px-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-md text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Nu
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowConfirmDelete(true)}
+                className="h-8 px-2.5 text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-md transition-colors cursor-pointer text-xs font-semibold flex items-center gap-1.5"
+                title="Șterge lead"
+              >
+                <Trash2 size={13} />
+                <span>Șterge</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="h-8 px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-md transition-colors shadow-2xs text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Save size={13} />
+                <span>Salvează</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePromote}
+                disabled={saving}
+                className="h-8 px-4 bg-[#051D35] hover:bg-[#0a2b4a] text-white font-medium rounded-md transition-colors shadow-xs text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <ArrowUpRight size={13} className="text-[#BE9662]" />
+                <span>Mută în Calificată</span>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 };
