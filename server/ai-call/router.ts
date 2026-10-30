@@ -146,7 +146,7 @@ aiCallRouter.post("/dial", async (req, res) => {
       } else if (step === 2) {
         appendTranscript(active, "user", "Alo? Bună ziua. Cine este la telefon?");
       } else if (step === 3) {
-        appendTranscript(active, "assistant", "Bună ziua! Mă numesc Andrei și vă contactez din partea agenției imobiliare CLC.");
+        appendTranscript(active, "assistant", "Bună ziua! Mă numesc Andrei și vă contactez din partea agenției imobiliare brokr.");
       } else if (step === 4) {
         appendTranscript(active, "user", "A, da! În legătură cu apartmentul de vânzare din Sectorul 3?");
       } else if (step === 5) {
@@ -359,7 +359,7 @@ export function setupWebSocket(server: any) {
               speechConfig: {
                 voiceConfig: { prebuiltVoiceConfig: { voiceName: "Zephyr" } }
               },
-              systemInstruction: `Sunteți Andrei, un agent imobiliar virtual extrem de politicos, cald și profesionist de la biroul brokr / imobiliare CLC.
+              systemInstruction: `Sunteți Andrei, un agent imobiliar virtual extrem de politicos, cald și profesionist de la biroul brokr.
 Scopul dumneavoastră este să stabiliți o relație călduroasă prin telefon cu proprietarul sau clientul, să discutați cu diacritice în română într-un limbaj simplu, aerisit, natural, să puneți întrebări deschise și să obțineți elementele solicitate.
 Informații suplimentare pentru ghidarea conversației:
 "${initialPrompt}"

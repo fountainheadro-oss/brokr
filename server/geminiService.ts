@@ -177,6 +177,7 @@ export async function serverExtractData(content: string, title: string, imageUrl
   - ALGORITM DE TITLU IDENTIC: Folosește exact aceleași instrucțiuni de generare a titlului atât în câmpul de titlu, cât și în descrierea de bază. Structura obligatorie: Tip imobil + număr camere/încăperi sau suprafață mp | Zonă | Pct. de interes | Pct forte imobil | Dotări | Parcare (ex: Apartament 3 camere | Unirii | Metrou 5min | Vedere Panoramică | Mobilat Modern | Loc parcare inclus). Titlul trebuie să aibă SUB 70 de caractere.
   - NEGATIVE CONSTRAINT: FĂRĂ denumiri de complexe de blocuri/ansambluri rezidențiale, FĂRĂ numere de stradă, FĂRĂ adrese poștale complete, FĂRĂ număr de bloc, scară sau apartament, atât în titlu cât și în descriere! (exclus: "Astorium", "Hills", "Str. X nr. Y", "bl. Z sc. W"). Folosește exclusiv zona/cartierul general.
   - EXCLUDE any mention of "0% commission", "0 ron", or "0 euro commission" (elimină orice referință la comision 0).
+  - REGULA INTRODUCERE DESCRIERE: În secțiunea de introducere descriptivă din descriere (sub titlu și înainte de primul separator ━━━━━━━━━━━━━━━━━━), include STRICT o scurtă propoziție teaser și un paragraf descriptiv al imobilului ca rezumat. ELIMINĂ COMPLET orice mențiune legată de proprietar (fără "direct de la proprietar", fără "proprietar"), FĂRĂ "comision 0%", FĂRĂ numere de stradă, bloc, scară sau apartament.
   
   - SÂNTE MANDATORII ȘABLONELE DE DESCRIERE DE MAI JOS PENTRU AMBELE CAMPU PRIVIND DESCRIEREA (crmData.descriere.continut ȘI markdownMarketing):
   
@@ -226,7 +227,7 @@ Disponibil imediat (sau disponibilitatea dedusă din text)
 
 🤝 SUPORT ÎNCHIRIERE (sau SUPORT VÂNZARE - în funcție de tipul de tranzacție "Închiriere" / "Vânzare")
 
--consultanță dedicată din partea agentiei CLC
+-consultanță dedicată din partea agenției brokr
 -asistență completă în întocmirea contractului și înregistrarea ANAF (ANAF se menționează doar pentru închirieri; pentru vânzare folosește o formulare adecvată cum ar fi asistență notarială)
 -posibilitate de vizionare rapidă și flexibilă
 
@@ -323,7 +324,7 @@ Condiții suplimentare:
 
 🤝 SUPORT ÎNCHIRIERE (sau SUPORT VÂNZARE)
 
--consultanță dedicată din partea agentiei CLC
+-consultanță dedicată din partea agenției brokr
 -suport negociere și contractare
 -analiză compatibilitate activitate
 -posibilitate de vizionare rapidă și flexibilă

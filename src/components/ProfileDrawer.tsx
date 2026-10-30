@@ -102,7 +102,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                   <span className="text-[9px] font-semibold text-[#051D35] bg-[#BE9662]/15 px-1.5 py-0.5 rounded border border-[#BE9662]/30">
                     {userRole}
                   </span>
-                  <span className="text-[9px] text-gray-400">CLC Imobiliare</span>
+                  <span className="text-[9px] text-gray-400">Agenția brokr</span>
                 </div>
               </div>
             </div>

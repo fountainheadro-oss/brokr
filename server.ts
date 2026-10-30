@@ -425,7 +425,7 @@ ${transactionType === "Închiriere" ? `${price || "N/A"}\n1 lună garanție\nCom
 
 🤝 ${transactionType === "Închiriere" ? "SUPORT ÎNCHIRIERE" : "SUPORT VÂNZARE"}
 
--consultanță dedicată din partea agentiei CLC
+-consultanță dedicată din partea agenției brokr
 -asistență completă în întocmirea contractului și înregistrarea ANAF
 -posibilitate de vizionare rapidă și flexibilă
 

@@ -350,6 +350,126 @@ export const PropertyDetailView: React.FC<PropertyDetailViewProps> = ({
   const garantie = crmData?.pret?.detalii?.garantie || (isRent ? `${crmData?.pret?.detalii?.pret || "775"} €` : "-");
   const avans = crmData?.pret?.detalii?.avans || (isRent ? "1 lună" : "15%");
 
+  // Extracts ONLY the introductory narrative text where the property is described as a summary,
+  // strictly removing anything related to proprietar, comision 0%, exact street and number, complex names, etc.
+  const summaryDescription = useMemo(() => {
+    const raw = crmData?.descriere?.continut || (lead as any)?.description || lead?.notes || "";
+    if (!raw) {
+      return `Apartament cu ${camere} camere, situat în zona ${addressDetails.zona}, ${addressDetails.sector}. Este complet mobilat și utilat, beneficiază de centrală proprie și încălzire în pardoseală, precum și de vedere către spații verzi.\n\nProprietate deosebită, pregătită pentru mutare imediată. Compartimentarea este de tip ${compartimentare}, optimizată inteligent pentru a oferi un confort maxim și spații generoase de depozitare.`;
+    }
+
+    const lines = raw.split("\n");
+    const introLines: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Stop once we hit a section divider or major subsection header
+      if (
+        line.includes("━━━━") ||
+        line.includes("----") ||
+        line.includes("====") ||
+        line.startsWith("⭐") ||
+        line.startsWith("🛋️") ||
+        line.startsWith("📍") ||
+        line.startsWith("💰") ||
+        line.startsWith("🤝") ||
+        line.startsWith("🛠️") ||
+        line.startsWith("💼") ||
+        line.toUpperCase().startsWith("AVANTAJE") ||
+        line.toUpperCase().startsWith("PUNCTE CHEIE") ||
+        line.toUpperCase().startsWith("DOTĂRI") ||
+        line.toUpperCase().startsWith("DOTARI") ||
+        line.toUpperCase().startsWith("LOCAȚIE") ||
+        line.toUpperCase().startsWith("LOCATIE") ||
+        line.toUpperCase().startsWith("APARTAMENT") ||
+        line.toUpperCase().startsWith("BLOC") ||
+        line.toUpperCase().startsWith("CONDIȚII") ||
+        line.toUpperCase().startsWith("CONDITII") ||
+        line.toUpperCase().startsWith("SUPORT") ||
+        line.toUpperCase().startsWith("CARACTERISTICI:") ||
+        line.toUpperCase().startsWith("FINISAJE:") ||
+        line.toUpperCase().startsWith("MOBILARE:") ||
+        line.toUpperCase().startsWith("TRANSPORT") ||
+        line.toUpperCase().startsWith("PARCARE")
+      ) {
+        break;
+      }
+
+      // Skip initial title/header/id lines
+      if (
+        line.startsWith("📌") ||
+        line.startsWith("🏡") ||
+        line.startsWith("🏢") ||
+        line.toLowerCase().startsWith("titlu:") ||
+        line.toLowerCase().startsWith("id:") ||
+        line.toLowerCase().startsWith("id ") ||
+        line.toLowerCase().startsWith("cod intern:")
+      ) {
+        continue;
+      }
+
+      // Skip lines with prohibited terms:
+      const lower = line.toLowerCase();
+      if (
+        lower.includes("comision 0") ||
+        lower.includes("0% comision") ||
+        lower.includes("0 euro comision") ||
+        lower.includes("0 comision") ||
+        lower.includes("comision zero") ||
+        lower.includes("fără comision") ||
+        lower.includes("fara comision") ||
+        lower.includes("proprietar") ||
+        lower.includes("nr. ") ||
+        lower.includes("strada ") ||
+        lower.includes("str. ") ||
+        lower.includes("numărul ") ||
+        lower.includes("numar ") ||
+        lower.includes("scara ") ||
+        lower.includes("bloc ") ||
+        (lower.includes("ap. ") && /\d/.test(lower))
+      ) {
+        continue;
+      }
+
+      introLines.push(lines[i]);
+    }
+
+    let cleanedText = introLines.join("\n").trim();
+
+    // Fallback to first 2 paragraphs if empty
+    if (!cleanedText || cleanedText.length < 20) {
+      const paragraphs = raw.split(/\n\s*\n/);
+      const candidates = paragraphs
+        .map(p => p.trim())
+        .filter(p => 
+          p && 
+          !p.includes("━━━━") && 
+          !p.startsWith("📌") && 
+          !p.startsWith("🏡") && 
+          !p.startsWith("🏢") &&
+          !p.toLowerCase().includes("comision 0") &&
+          !p.toLowerCase().includes("0% comision") &&
+          !p.toLowerCase().includes("proprietar")
+        );
+      if (candidates.length > 0) {
+        cleanedText = candidates.slice(0, 2).join("\n\n");
+      }
+    }
+
+    // Clean any remaining street number mentions or comision 0 patterns using regex
+    cleanedText = cleanedText
+      .replace(/(\b(?:strada|str\.|calea|bulevardul|bd\.)\s+[a-zăîșțâ\s]+)\s+(?:nr\.|numărul|numar)\s*\d+[a-z]?/gi, "$1")
+      .replace(/(?:comision\s*0%|0%\s*comision|comision\s*zero|fără\s*comision)/gi, "")
+      .replace(/(?:închiriere|vânzare)\s+direct\s+de\s+la\s+proprietar/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+    return cleanedText || (
+      `Apartament cu ${camere} camere, situat în zona ${addressDetails.zona}, ${addressDetails.sector}. Este complet mobilat și utilat, beneficiază de centrală proprie și încălzire în pardoseală, precum și de vedere către spații verzi.`
+    );
+  }, [crmData?.descriere?.continut, (lead as any)?.description, lead?.notes, camere, addressDetails.zona, addressDetails.sector, compartimentare]);
+
   // Agency agent contact info (strictly used in public share so owner info is never leaked!)
   const agencyBroker = {
     name: "Alexandru Popa",
@@ -625,9 +745,7 @@ export const PropertyDetailView: React.FC<PropertyDetailViewProps> = ({
 
               <div className="p-6">
                 <div className="text-xs sm:text-sm text-gray-700 leading-relaxed space-y-3 font-normal whitespace-pre-line">
-                  {crmData?.descriere?.continut || lead.notes || (
-                    `Apartament cu ${camere} camere, situat în zona ${addressDetails.zona}, ${addressDetails.sector}. Este complet mobilat și utilat, beneficiază de centrală proprie și încălzire în pardoseală, precum și de vedere către spații verzi.\n\nProprietate deosebită, pregătită pentru mutare imediată. Compartimentarea este de tip ${compartimentare}, optimizată inteligent pentru a oferi un confort maxim și spații generoase de depozitare.\n\nFinisajele sunt moderne și de calitate superioară, iar mobilierul a fost atent selecționat pentru a crea o atmosferă primitoare și aerisită. Beneficiază de costuri optime de întreținere datorită centralei proprii și a izolației termice performante.`
-                  )}
+                  {summaryDescription}
                 </div>
               </div>
             </div>
@@ -1012,58 +1130,10 @@ export const PropertyDetailView: React.FC<PropertyDetailViewProps> = ({
 
           </div>
 
-          {/* Right Column: Sticky Sidebar */}
-          <div className="lg:col-span-4 lg:sticky lg:top-20 space-y-5">
+          {/* Right Column: Sticky Sidebar with clear margin below sticky horizontal menu */}
+          <div className="lg:col-span-4 lg:sticky lg:top-[128px] space-y-5">
             
-            {/* 1. AGENCY CARD (BEFORE agent card per instruction) */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
-              <div className="p-5 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-lg bg-[#051D35] flex items-center justify-center text-white shadow-xs">
-                    <span className="font-black text-sm tracking-tight">
-                      b<span className="text-[#BE9662]">.</span>
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-[#051D35] tracking-tight">
-                      Agenția Imobiliară brokr<span className="text-[#BE9662]">.</span>
-                    </h3>
-                    <p className="text-[10px] text-gray-500 font-medium">
-                      Consultanță & Reprezentare Exclusivă
-                    </p>
-                  </div>
-                </div>
-
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <ShieldCheck size={11} />
-                  Verificat
-                </span>
-              </div>
-
-              <div className="p-5 space-y-3.5 text-xs text-gray-600">
-                <div className="flex items-center gap-2 text-gray-700 font-medium">
-                  <Clock size={14} className="text-[#BE9662] shrink-0" />
-                  <span>Program de lucru: <strong>Luni - Duminică: 09:00 - 21:00</strong></span>
-                </div>
-
-                <div className="flex items-center gap-2 text-gray-700 font-medium">
-                  <Phone size={14} className="text-[#BE9662] shrink-0" />
-                  <span>Telefon centrală: <strong className="font-mono text-gray-900">0720 000 000</strong></span>
-                </div>
-
-                <div className="flex items-center gap-2 text-gray-700 font-medium">
-                  <Mail size={14} className="text-[#BE9662] shrink-0" />
-                  <span>Email: <strong className="text-gray-900">contact@brokr.ro</strong></span>
-                </div>
-
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
-                  <span>Licență & Asigurare profesională</span>
-                  <span className="font-mono text-gray-600">ID: BROKR-2026</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. AGENT CARD (AFTER agency card per instruction) */}
+            {/* AGENT CARD */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
               <div className="p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3.5">

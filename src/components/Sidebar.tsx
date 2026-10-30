@@ -5,13 +5,13 @@ import {
   ClipboardList, 
   Inbox, 
   PanelLeftClose, 
-  PanelLeft,
   Users,
   UserCheck
 } from "lucide-react";
 import { Lead, isCerereLead } from "../services/leadsService";
 import { Contact } from "../services/contactsService";
 import { PersonalMember } from "../services/personalService";
+import { getCurrentVersion } from "../utils/versionService";
 
 export type NavSubItem = 'Lead-uri' | 'Cereri' | 'Imobile' | 'Proprietăți' | 'Contacte' | 'Clienți' | 'Personal';
 export type NavTransactionType = 'Închiriere' | 'Vânzare';
@@ -87,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isImobileActive = activeSubItem === 'Imobile' || activeSubItem === 'Proprietăți';
   const isContacteActive = activeSubItem === 'Contacte' || activeSubItem === 'Clienți';
+  const versionInfo = getCurrentVersion();
 
   return (
     <aside 
@@ -119,14 +120,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </>
         ) : (
           <div className="w-full flex items-center justify-center">
-            {/* Collapsed square container with exact same dimensions (w-9 h-9) as the menu buttons below */}
+            {/* Collapsed logo: smaller version on white background without color switching */}
             <button 
               type="button"
               onClick={handleToggleCollapse}
-              className="w-9 h-9 rounded-md flex items-center justify-center bg-[#051D35] text-white hover:opacity-95 transition-all cursor-pointer focus:outline-none shadow-xs"
+              className="w-9 h-9 rounded-md flex items-center justify-center bg-white hover:bg-gray-100 transition-all cursor-pointer focus:outline-none"
               title="Extinde meniul (brokr)"
             >
-              <span className="text-[17px] font-bold tracking-tight text-white font-sans leading-none">
+              <span className="text-[20px] font-bold tracking-tight text-[#051D35] font-sans leading-none">
                 b<span className="text-[#BE9662]">.</span>
               </span>
             </button>
@@ -320,27 +321,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Bottom Footer Action: Collapse / Expand toggle button */}
-      <div className="shrink-0 border-t border-gray-200 p-2 bg-white">
+      {/* Bottom Footer: Automated Version & Update Info (replaces collapse button) */}
+      <div className="shrink-0 border-t border-gray-200 bg-gray-50/80 select-none">
         {!isCollapsed ? (
-          <button
-            type="button"
-            onClick={handleToggleCollapse}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-gray-500 hover:text-[#051D35] hover:bg-gray-100/70 rounded-md transition-colors cursor-pointer"
-            title="Restrânge bara laterală"
-          >
-            <PanelLeftClose size={15} className="shrink-0" />
-            <span>Restrânge</span>
-          </button>
+          <div className="px-3 py-2.5 flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span className="text-[11px] font-mono font-bold text-gray-800 tracking-tight leading-tight">
+                {versionInfo.versionCode}
+              </span>
+            </div>
+            <span className="text-[10px] text-gray-400 font-mono leading-tight pl-3 truncate">
+              ({versionInfo.dateFormatted})
+            </span>
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={handleToggleCollapse}
-            className="w-full flex items-center justify-center py-2 text-gray-500 hover:text-[#051D35] hover:bg-gray-100/70 rounded-md transition-colors cursor-pointer"
-            title="Extinde bara laterală"
+          <div 
+            className="py-2.5 px-1 flex flex-col items-center justify-center cursor-default"
+            title={versionInfo.fullDisplay}
           >
-            <PanelLeft size={16} />
-          </button>
+            <span className="text-[9px] font-mono font-bold text-gray-600 leading-tight">
+              v{versionInfo.major}.{versionInfo.minor}
+            </span>
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1" />
+          </div>
         )}
       </div>
     </aside>

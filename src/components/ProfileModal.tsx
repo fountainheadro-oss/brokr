@@ -28,7 +28,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, onO
   const userEmail = currentUser?.email || 'alexandru.radu@brokr.ro';
   const userPhoto = currentUser?.photoURL;
   const userRole = 'Broker Principal';
-  const agencyName = 'CLC Imobiliare';
+  const agencyName = 'Agenția brokr';
   const creationTime = currentUser?.metadata?.creationTime 
     ? new Date(currentUser.metadata.creationTime).toLocaleDateString('ro-RO', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Octombrie 2024';

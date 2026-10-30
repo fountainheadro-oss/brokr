@@ -61,7 +61,7 @@ Acest document conține reglementările oficiale și exhaustive pentru logica de
 
      🤝 SUPORT ÎNCHIRIERE (sau SUPORT VÂNZARE)
 
-     -consultanță dedicată din partea agentiei CLC
+     -consultanță dedicată din partea agenției brokr
      -asistență completă în întocmirea contractului și înregistrarea ANAF
      -posibilitate de vizionare rapidă și flexibilă
 
@@ -160,7 +160,7 @@ Acest document conține reglementările oficiale și exhaustive pentru logica de
 
       🤝 SUPORT ÎNCHIRIERE (sau SUPORT VÂNZARE)
 
-      - consultanță dedicată din partea agentiei CLC
+      - consultanță dedicată din partea agenției brokr
       - suport negociere și contractare
       - analiză compatibilitate activitate
       - posibilitate de vizionare rapidă și flexibilă

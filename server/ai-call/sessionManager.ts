@@ -140,7 +140,7 @@ async function triggerNotesExtraction(session: CallSession) {
           role: "user",
           parts: [
             {
-              text: `Analizează transcrierea de mai jos a convorbirii telefonice în limba română dintre un asistent imobiliar inteligent AI (lucrând pentru agenția CLC / brokr) și un client/proprietar.
+              text: `Analizează transcrierea de mai jos a convorbirii telefonice în limba română dintre un asistent imobiliar inteligent AI (lucrând pentru agenția brokr) și un client/proprietar.
 Extrage informațiile importante și actualizează structura JSON conform schemei precizate.
 
 CONVERSAȚIE:

@@ -301,7 +301,7 @@ const MapController = ({
           const res = await fetch(url, {
             headers: {
               'Accept': 'application/json',
-              'User-Agent': 'CLC-CRM-Real-Estate-Extract'
+              'User-Agent': 'brokr-CRM-Real-Estate-Extract'
             }
           });
           if (!res.ok) return null;
@@ -418,7 +418,7 @@ const MapController = ({
             const res = await fetch(url, {
               headers: {
                 'Accept': 'application/json',
-                'User-Agent': 'CLC-CRM-Real-Estate-Extract'
+                'User-Agent': 'brokr-CRM-Real-Estate-Extract'
               }
             });
             if (!res.ok) return null;

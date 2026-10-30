@@ -631,7 +631,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button 
             type="button"
             onClick={onCalendarClick || (() => navigate('/calendar'))}
-            className={`h-full px-[20px] w-auto flex items-center justify-center border-l border-gray-200 transition-colors cursor-pointer select-none focus:outline-none ${
+            className={`h-full w-[50px] aspect-square flex items-center justify-center border-l border-gray-200 transition-colors cursor-pointer select-none focus:outline-none shrink-0 ${
               isCalendar 
                 ? 'bg-gray-100 text-gray-900 font-semibold' 
                 : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -645,10 +645,10 @@ export const Header: React.FC<HeaderProps> = ({
           <button 
             type="button"
             onClick={onNotificationsClick}
-            className="h-full px-[20px] w-auto flex items-center justify-center border-l border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-[#051D35] transition-colors relative cursor-pointer select-none shrink-0 focus:outline-none"
+            className="h-full w-[50px] aspect-square flex items-center justify-center border-l border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-[#051D35] transition-colors relative cursor-pointer select-none shrink-0 focus:outline-none"
             title="Alerte și Notificări"
           >
-            <div className="w-2 h-2 bg-[#BE9662] rounded-full absolute top-[13px] right-[14px] border border-white" />
+            <div className="w-2 h-2 bg-[#BE9662] rounded-full absolute top-[13px] right-[13px] border border-white" />
             <Bell size={16} className="shrink-0 block" />
           </button>
   
